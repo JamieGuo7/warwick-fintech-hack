@@ -4,23 +4,25 @@ from typing import List, Optional
 class SavingsGoal(BaseModel):
     name: str
     target_amount: float
-    timeframe_months: int
+    priority: int = 1           # 1 = highest priority; lower number = more weight
+    timeframe_months: Optional[int] = None  # deprecated, kept for backward compat
 
 class Debt(BaseModel):
-    category: str           # e.g. "Mortgage", "Car Loan", "Credit Card", "Student Loan", "Other"
-    label: str              # user-facing name, may be custom
-    total_amount: float     # total outstanding balance
+    category: str
+    label: str
+    total_amount: float
     monthly_payment: float
-    apr: float              # annual percentage rate (%)
+    apr: float
     months_remaining: Optional[float] = None
-    # None = indefinite (revolving/open-ended debt, e.g. credit card with no payoff plan)
-    # float rather than int so downstream code can store math.inf if needed
 
 class UserOnboarding(BaseModel):
     name: str
     current_savings: float
     average_income: float
     average_expenses: float
+    var_income: Optional[float] = None
+    var_expenses: Optional[float] = None
     credit_limit: float
+    savings_allocation_pct: float = 50.0   # % of monthly surplus allocated to savings goals
     savings_goals: List[SavingsGoal]
     debts: List[Debt] = []
