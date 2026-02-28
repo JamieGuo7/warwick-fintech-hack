@@ -1237,16 +1237,16 @@ document.querySelectorAll('.modal-overlay').forEach(overlay => {
 const TERMS = [
   { word:'APR', category:'credit', cat_label:'Credit', teaser:'The annual cost of borrowing money, expressed as a percentage.', definition:'The rate at which someone who borrows money is charged, calculated over a period of twelve months.' },
   { word:'Credit', category:'credit', cat_label:'Credit', teaser:'A method of paying for goods and services.', definition:'A method of paying for goods or services at a later time, usually paying interest as well as the original money.' },
+  { word:'Minimum Payment', category:'credit', cat_label:'Credit', teaser:'The smallest amount you must pay on a debt each month.', definition:'The lowest amount a credit card provider allows you to pay monthly to keep your account in good standing and avoid late fees' },
   { word:'Default', category:'debt', cat_label:'Debt', teaser:'Fail to pay back an agreed amount.', definition:'To fail to do something, such as pay a debt, that you legally have to do.' },
-  { word:'BNPL', category:'debt', cat_label:'Debt', teaser:'Buy Now, Pay Later — a short-term instalment credit product.', definition:'DEFINITION PLACEHOLDER — edit me!' },
-  { word:'Minimum Payment', category:'debt', cat_label:'Debt', teaser:'The smallest amount you must pay on a debt each month.', definition:'The lowest amount a credit card provider allows you to pay monthly to keep your account in good standing and avoid late fees' },
-  { word:'Compound Interest', category:'debt', cat_label:'Debt', teaser:'Interest calculated on both principal and accumulated interest.', definition:'DEFINITION PLACEHOLDER — edit me!' },
-  { word:'Emergency Fund', category:'savings', cat_label:'Savings', teaser:'A cash reserve set aside for unexpected expenses.', definition:'DEFINITION PLACEHOLDER — edit me!' },
-  { word:'Net Worth', category:'savings', cat_label:'Savings', teaser:'What you own minus what you owe.', definition:'DEFINITION PLACEHOLDER — edit me!' },
-  { word:'Debt-to-Income Ratio', category:'general', cat_label:'General', teaser:'Your monthly debt payments as a percentage of monthly income.', definition:'DEFINITION PLACEHOLDER — edit me!' },
-  { word:'Revolving Credit', category:'credit', cat_label:'Credit', teaser:'A credit line you can borrow from repeatedly up to a limit.', definition:'DEFINITION PLACEHOLDER — edit me!' },
-  { word:'Amortisation', category:'debt', cat_label:'Debt', teaser:'The process of paying off a debt through regular instalments.', definition:'DEFINITION PLACEHOLDER — edit me!' },
-  { word:'Predatory Lending', category:'general', cat_label:'General', teaser:'Unfair or deceptive loan practices that exploit borrowers.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Loan', category:'debt', cat_label:'Debt', teaser:'Borrowed Assets', definition:'An amount of money that is borrowed, often from a bank, and has to be paid back, usually together with an extra amount of money that you have to pay as a charge for borrowing.' },
+  { word:'Overdraft', category:'debt', cat_label:'Debt', teaser:'Temporary borrowing limits.', definition:'An amount of money that a customer with a bank account is temporarily allowed to owe to the bank, or the agreement that allows this.' },
+  { word:'Interest', category:'savings', cat_label:'Savings', teaser:'Money paid to account for the time value of money.', definition:'Money that is paid by a bank or other financial organization for keeping your money in an account, or charged for borrowing money.' },
+  { word:'Compound Interest', category:'savings', cat_label:'Savings', teaser:'The effects of interest building over time.', definition:'Interest that is calculated on both the amount of money invested or borrowed and on the interest that has been added to it.' },
+  { word:'Savings Account', category:'savings', cat_label:'Savings', teaser:'A certain type of bank account.', definition:'A bank account where you keep money that you do not need to spend immediately and that usually earns interest.' },
+  { word:'Inflation', category:'general', cat_label:'General', teaser:'Increase in prices over time.', definition:'An increase in prices over time, causing a reduction in the value of money.' },
+  { word:'Tax', category:'general', cat_label:'General', teaser:'Money paid to government based on income / purchases.', definition:'An amount of money paid to the government that is based on your income or the cost of goods or services you have bought.' },
+  { word:'Mortgage', category:'general', cat_label:'General', teaser:'Type of loan used to finance property.', definition:'An agreement that allows you to borrow money from a bank or similar organization, especially in order to buy a house, or the amount of money itself.' },
 ];
 
 function renderLearn() {
@@ -1260,12 +1260,10 @@ function renderLearn() {
         <div class="term-category">${t.cat_label}</div>
         <div class="term-word">${t.word}</div>
         <div class="term-teaser">${t.teaser}</div>
-        <div class="term-tap-hint">↩ tap to see definition</div>
       </div>
       <div class="term-back">
         <div class="term-back-label">${t.cat_label} · ${t.word}</div>
         <div class="term-definition">${t.definition}</div>
-        <div class="term-tap-hint" style="margin-top:1rem">↩ tap to flip back</div>
       </div>`;
     card.addEventListener('click', () => card.classList.toggle('flipped'));
     grid.appendChild(card);
