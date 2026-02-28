@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DebtShield — Onboarding</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #090e1a;
+    --surface: #111827;
+    --surface2: #1a2540;
+    --border: #1e2d4a;
+    --green: #00e5a0;
+    --green-dim: #00e5a020;
+    --green-mid: #00e5a060;
+    --text: #e8edf5;
+    --text-muted: #6b7a99;
+    --red: #ff4d6d;
+    --yellow: #ffd166;
+  }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 2rem 1rem;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; top: -30%; left: 50%; transform: translateX(-50%);
+    width: 700px; height: 700px;
+    background: radial-gradient(ellipse, #00e5a012 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+
+  .shell { position: relative; z-index: 1; width: 100%; max-width: 560px; }
+
+  .brand { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 2.5rem; }
+  .brand-icon {
+    width: 36px; height: 36px; background: var(--green); border-radius: 8px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  }
+  .brand-name { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+  .brand-name span { color: var(--green); }
+
+  .progress-track { display: flex; gap: 6px; margin-bottom: 2rem; }
+  .progress-seg {
+    height: 3px; flex: 1; background: var(--border);
+    border-radius: 99px; transition: background 0.4s ease;
+  }
+  .progress-seg.active { background: var(--green); }
+  .progress-seg.done   { background: var(--green-mid); }
+
+  .step-label {
+    font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 2rem; margin-bottom: 1rem;
+  }
+  .card-title  { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
+  .card-subtitle { color: var(--text-muted); font-size: 0.9rem; font-weight: 400; margin-bottom: 1.8rem; line-height: 1.5; }
+
+  /* ── Standard fields ── */
+  .field { margin-bottom: 1.2rem; }
+  .field label {
+    display: block; font-size: 0.8rem; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--text-muted); margin-bottom: 0.45rem;
+  }
+  .field input, .field select {
+    width: 100%; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.75rem 1rem; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 0.95rem;
+    outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none; -webkit-appearance: none;
+  }
+  .field select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a99' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem; cursor: pointer;
+  }
+  .field select option { background: #1a2540; color: var(--text); }
+  .field input:focus, .field select:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+  .field input::placeholder { color: var(--text-muted); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+  .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.3rem; font-family: 'DM Mono', monospace; }
+
+  /* ── List items (goals & debts) ── */
+  .items-list { display: flex; flex-direction: column; gap: 0.8rem; margin-bottom: 1rem; }
+  .list-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1rem; animation: slideIn 0.25s ease;
+  }
+  @keyframes slideIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+
+  .list-item input, .list-item select {
+    background: transparent; border: none; border-bottom: 1px solid var(--border);
+    border-radius: 0; padding: 0.35rem 0; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 0.88rem;
+    outline: none; transition: border-color 0.2s; width: 100%;
+    appearance: none; -webkit-appearance: none;
+  }
+  .list-item select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a99' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 0.3rem center;
+    padding-right: 1.5rem; cursor: pointer;
+  }
+  .list-item select option { background: #1a2540; }
+  .list-item input:focus, .list-item select:focus { border-color: var(--green); box-shadow: none; }
+  .list-item input::placeholder { color: var(--text-muted); }
+
+  .ifl { /* item field label */
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-muted); margin-bottom: 0.25rem;
+    font-family: 'DM Mono', monospace;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .autofill-badge {
+    font-size: 0.6rem; color: var(--yellow);
+    background: #ffd16618; border: 1px solid #ffd16640;
+    border-radius: 4px; padding: 0.1rem 0.35rem;
+  }
+  .apr-hint {
+    font-size: 0.68rem; color: var(--yellow);
+    font-family: 'DM Mono', monospace; margin-top: 0.25rem; display: none;
+  }
+  .apr-hint.visible { display: block; }
+
+  /* ── Indefinite toggle ── */
+  .indefinite-toggle {
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-top: 0.6rem; cursor: pointer; user-select: none;
+  }
+  .indefinite-toggle input[type="checkbox"] { display: none; }
+  .toggle-track {
+    width: 32px; height: 18px; background: var(--border);
+    border-radius: 99px; position: relative; transition: background 0.2s; flex-shrink: 0;
+  }
+  .toggle-track::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 12px; height: 12px; background: var(--text-muted);
+    border-radius: 50%; transition: transform 0.2s, background 0.2s;
+  }
+  .indefinite-toggle input:checked + .toggle-track { background: #ffd16640; }
+  .indefinite-toggle input:checked + .toggle-track::after { transform: translateX(14px); background: var(--yellow); }
+  .toggle-label {
+    font-size: 0.72rem; font-family: 'DM Mono', monospace;
+    color: var(--text-muted); transition: color 0.2s;
+  }
+  .indefinite-toggle input:checked ~ .toggle-label { color: var(--yellow); }
+
+  .indefinite-chip {
+    font-family: 'DM Mono', monospace; font-size: 0.88rem; color: var(--yellow);
+    padding: 0.35rem 0; border-bottom: 1px solid var(--border); letter-spacing: 0.02em;
+  }
+
+  .item-remove-row { display: flex; justify-content: flex-end; margin-top: 0.8rem; }
+  .item-remove {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 0.78rem; font-family: 'DM Mono', monospace; padding: 0.2rem 0.4rem; transition: color 0.2s;
+  }
+  .item-remove:hover { color: var(--red); }
+
+  .add-item-btn {
+    width: 100%; background: var(--green-dim); border: 1px dashed var(--green-mid);
+    border-radius: 10px; padding: 0.7rem; color: var(--green);
+    font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; transition: background 0.2s; letter-spacing: 0.02em;
+  }
+  .add-item-btn:hover { background: #00e5a030; }
+  .add-item-btn.debt-btn { background: #ff4d6d10; border-color: #ff4d6d40; color: #ff8fa3; }
+  .add-item-btn.debt-btn:hover { background: #ff4d6d20; }
+
+  /* ── Summary ── */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1.4rem; }
+  .summary-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; }
+  .summary-item .s-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.3rem; }
+  .summary-item .s-value { font-family: 'DM Mono', monospace; font-size: 1rem; font-weight: 500; color: var(--green); }
+
+  .summary-section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.55rem; }
+  .pill-row { margin-bottom: 1.2rem; }
+  .goal-pill, .debt-pill {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    border-radius: 99px; padding: 0.3rem 0.8rem;
+    font-size: 0.78rem; margin: 0.2rem 0.2rem 0.2rem 0; font-family: 'DM Mono', monospace;
+  }
+  .goal-pill { background: var(--green-dim); border: 1px solid var(--green-mid); color: var(--green); }
+  .debt-pill { background: #ff4d6d10; border: 1px solid #ff4d6d40; color: #ff8fa3; }
+  .no-items { font-family: 'DM Mono', monospace; font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+
+  /* ── Buttons ── */
+  .btn-row { display: flex; gap: 0.8rem; margin-top: 1.5rem; }
+  .btn-back {
+    flex: 0 0 auto; background: transparent; border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.8rem 1.2rem; color: var(--text-muted);
+    font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.9rem;
+    cursor: pointer; transition: border-color 0.2s, color 0.2s;
+  }
+  .btn-back:hover { border-color: var(--text-muted); color: var(--text); }
+  .btn-next {
+    flex: 1; background: var(--green); border: none; border-radius: 10px;
+    padding: 0.85rem 1.5rem; color: #090e1a;
+    font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.95rem;
+    cursor: pointer; letter-spacing: 0.02em; transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn-next:hover { opacity: 0.9; }
+  .btn-next:active { transform: scale(0.98); }
+  .btn-next:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .step { display: none; }
+  .step.active { display: block; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+  .success-state { text-align: center; padding: 1rem 0; }
+  .success-icon {
+    width: 64px; height: 64px; background: var(--green); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1.5rem; font-size: 1.8rem;
+    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  @keyframes popIn { from { transform:scale(0); } to { transform:scale(1); } }
+  .success-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .success-sub { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+
+  .error-msg {
+    background: #ff4d6d18; border: 1px solid #ff4d6d40; border-radius: 8px;
+    padding: 0.7rem 1rem; color: var(--red); font-size: 0.85rem;
+    margin-top: 0.8rem; display: none; font-family: 'DM Mono', monospace;
+  }
+  .error-msg.visible { display: block; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <div class="brand">
+    <div class="brand-icon">🛡</div>
+    <div class="brand-name">Debt<span>Shield</span></div>
+  </div>
+
+  <div class="progress-track">
+    <div class="progress-seg active" id="seg-0"></div>
+    <div class="progress-seg" id="seg-1"></div>
+    <div class="progress-seg" id="seg-2"></div>
+    <div class="progress-seg" id="seg-3"></div>
+    <div class="progress-seg" id="seg-4"></div>
+  </div>
+
+  <!-- STEP 0: Name -->
+  <div class="step active" id="step-0">
+    <div class="card">
+      <div class="step-label">Step 1 of 5 — Identity</div>
+      <div class="card-title">Hey, what's your name?</div>
+      <div class="card-subtitle">We'll use this to personalise your financial profile. No account needed.</div>
+      <div class="field">
+        <label>Your Name</label>
+        <input type="text" id="name" placeholder="e.g. Jordan" autocomplete="off" />
+      </div>
+      <div class="error-msg" id="err-0">Please enter your name to continue.</div>
+      <div class="btn-row">
+        <button class="btn-next" onclick="goTo(1)">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 1: Finances -->
+  <div class="step" id="step-1">
+    <div class="card">
+      <div class="step-label">Step 2 of 5 — Your Finances</div>
+      <div class="card-title">Let's look at your numbers</div>
+      <div class="card-subtitle">Estimates are fine — you can update these later. All data stays on your device.</div>
+      <div class="field">
+        <label>Current Savings ($)</label>
+        <input type="number" id="savings" placeholder="0.00" min="0" step="0.01" />
+        <div class="hint">Total across all savings accounts</div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Monthly Income ($)</label>
+          <input type="number" id="income" placeholder="0.00" min="0" step="0.01" />
+        </div>
+        <div class="field">
+          <label>Monthly Expenses ($)</label>
+          <input type="number" id="expenses" placeholder="0.00" min="0" step="0.01" />
+          <div class="hint">Include all outgoings — rent, food, bills, and debt payments</div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Total Credit Limit ($)</label>
+        <input type="number" id="credit" placeholder="0.00" min="0" step="0.01" />
+        <div class="hint">Combined across all credit cards</div>
+      </div>
+      <div class="error-msg" id="err-1">Please fill in all fields with valid numbers.</div>
+      <div class="btn-row">
+        <button class="btn-back" onclick="goTo(0)">← Back</button>
+        <button class="btn-next" onclick="goTo(2)">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Goals -->
+  <div class="step" id="step-2">
+    <div class="card">
+      <div class="step-label">Step 3 of 5 — Your Goals</div>
+      <div class="card-title">What are you saving for?</div>
+      <div class="card-subtitle">Add the goals you want DebtShield to protect. We'll warn you when a purchase puts them at risk.</div>
+      <div class="items-list" id="goals-list"></div>
+      <button class="add-item-btn" onclick="addGoal()">+ Add a savings goal</button>
+      <div class="error-msg" id="err-2">Please add at least one savings goal and fill in all fields.</div>
+      <div class="btn-row">
+        <button class="btn-back" onclick="goTo(1)">← Back</button>
+        <button class="btn-next" onclick="goTo(3)">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Debts -->
+  <div class="step" id="step-3">
+    <div class="card">
+      <div class="step-label">Step 4 of 5 — Your Debts</div>
+      <div class="card-title">What do you currently owe?</div>
+      <div class="card-subtitle">DebtShield uses this to model the true cost of new debt. Don't have any? Just skip ahead.</div>
+      <div class="items-list" id="debts-list"></div>
+      <button class="add-item-btn debt-btn" onclick="addDebt()">+ Add a debt</button>
+      <div class="error-msg" id="err-3">Please fill in all fields for each debt you've added.</div>
+      <div class="btn-row">
+        <button class="btn-back" onclick="goTo(2)">← Back</button>
+        <button class="btn-next" onclick="goTo(4)">Review →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Review -->
+  <div class="step" id="step-4">
+    <div class="card">
+      <div class="step-label">Step 5 of 5 — Review</div>
+      <div class="card-title">Does this look right?</div>
+      <div class="card-subtitle">DebtShield will use these details to calculate the real impact of purchases before you commit.</div>
+      <div class="summary-grid" id="summary-grid"></div>
+      <div class="summary-section-label">Savings Goals</div>
+      <div class="pill-row" id="goals-pills"></div>
+      <div class="summary-section-label">Debts</div>
+      <div class="pill-row" id="debts-pills"></div>
+      <div class="error-msg" id="err-4"></div>
+      <div class="btn-row">
+        <button class="btn-back" onclick="goTo(3)">← Back</button>
+        <button class="btn-next" id="submit-btn" onclick="submitData()">Activate DebtShield 🛡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="step" id="step-success">
+    <div class="card">
+      <div class="success-state">
+        <div class="success-icon">✓</div>
+        <div class="success-title">You're protected.</div>
+        <div class="success-sub" id="success-msg">DebtShield is now active. We'll intervene before any high-risk purchase puts your goals at risk.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const TOTAL_STEPS = 5;
+  let currentStep = 0;
+  let goals = [];
+  let debts = [];
+
+  const API_BASE = 'http://localhost:8000';
+
+  // Typical US average APRs by category
+  const DEFAULT_APR = {
+    'Mortgage':      6.8,
+    'Car Loan':      7.1,
+    'Student Loan':  5.5,
+    'Credit Card':  24.6,
+    'Personal Loan':12.4,
+    'Medical':       0.0,
+    'Other':        10.0,
+  };
+  const DEBT_CATEGORIES = [...Object.keys(DEFAULT_APR), 'Custom'];
+
+  /* ─── NAVIGATION ─── */
+  function goTo(step) {
+    if (!validate(currentStep)) return;
+    for (let i = 0; i < TOTAL_STEPS; i++) {
+      const seg = document.getElementById(`seg-${i}`);
+      seg.className = 'progress-seg';
+      if (i < step) seg.classList.add('done');
+      else if (i === step) seg.classList.add('active');
+    }
+    document.getElementById(`step-${currentStep}`).classList.remove('active');
+    currentStep = step;
+    document.getElementById(`step-${currentStep}`).classList.add('active');
+    if (step === 4) renderSummary();
+  }
+
+  /* ─── VALIDATION ─── */
+  function validate(step) {
+    clearErrors();
+    if (step === 0) {
+      if (!document.getElementById('name').value.trim()) { showError('err-0'); return false; }
+    }
+    if (step === 1) {
+      const vals = ['savings','income','expenses','credit'].map(id => document.getElementById(id).value);
+      if (vals.some(v => v === '' || isNaN(+v))) { showError('err-1'); return false; }
+    }
+    if (step === 2) {
+      if (goals.length === 0) { showError('err-2'); return false; }
+      for (const g of goals) {
+        if (!g.name || g.amount === '' || g.months === '') { showError('err-2'); return false; }
+      }
+    }
+    if (step === 3) {
+      for (const d of debts) {
+        // months is only required if not indefinite
+        const monthsOk = d.indefinite || d.months !== '';
+        if (!d.category || d.total === '' || d.monthly === '' || d.apr === '' || !monthsOk) {
+          showError('err-3'); return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function clearErrors() {
+    document.querySelectorAll('.error-msg').forEach(el => {
+      el.classList.remove('visible'); el.style.display = 'none';
+    });
+  }
+  function showError(id) {
+    const el = document.getElementById(id); el.style.display = 'block'; el.classList.add('visible');
+  }
+
+  /* ─── GOALS ─── */
+  function addGoal() {
+    goals.push({ id: Date.now(), name: '', amount: '', months: '' });
+    renderGoals();
+  }
+  function removeGoal(id) { goals = goals.filter(g => g.id !== id); renderGoals(); }
+  function updateGoal(id, field, val) { const g = goals.find(g => g.id === id); if (g) g[field] = val; }
+
+  function renderGoals() {
+    const list = document.getElementById('goals-list');
+    list.innerHTML = '';
+    goals.forEach(g => {
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      div.innerHTML = `
+        <div class="ifl">Goal Name</div>
+        <input type="text" placeholder="e.g. Emergency Fund"
+          value="${esc(g.name)}" oninput="updateGoal(${g.id},'name',this.value)"
+          style="margin-bottom:0.9rem"/>
+        <div class="grid-2" style="margin-bottom:0">
+          <div>
+            <div class="ifl">Target Amount ($)</div>
+            <input type="number" placeholder="1000" value="${g.amount}"
+              oninput="updateGoal(${g.id},'amount',this.value)" min="0" step="0.01"/>
+          </div>
+          <div>
+            <div class="ifl">Timeframe (months)</div>
+            <input type="number" placeholder="12" value="${g.months}"
+              oninput="updateGoal(${g.id},'months',this.value)" min="1"/>
+          </div>
+        </div>
+        <div class="item-remove-row">
+          <button class="item-remove" onclick="removeGoal(${g.id})">✕ Remove</button>
+        </div>`;
+      list.appendChild(div);
+    });
+  }
+
+  /* ─── DEBTS ─── */
+  function addDebt() {
+    debts.push({ id: Date.now(), category: '', label: '', total: '', monthly: '', apr: '', aprAutofilled: false, months: '', indefinite: false });
+    renderDebts();
+  }
+  function removeDebt(id) { debts = debts.filter(d => d.id !== id); renderDebts(); }
+
+  function updateDebt(id, field, val) {
+    const d = debts.find(d => d.id === id); if (!d) return;
+    d[field] = val;
+    if (field === 'category' && val !== 'Custom') {
+      if (DEFAULT_APR[val] !== undefined) { d.apr = DEFAULT_APR[val]; d.aprAutofilled = true; }
+      if (!d.label) d.label = val;
+      renderDebts();
+    }
+  }
+
+  function overrideApr(id, val) {
+    const d = debts.find(d => d.id === id); if (!d) return;
+    d.apr = val; d.aprAutofilled = false;
+    const hint  = document.getElementById(`apr-hint-${id}`);
+    const badge = document.getElementById(`apr-badge-${id}`);
+    if (hint)  hint.classList.remove('visible');
+    if (badge) badge.style.display = 'none';
+  }
+
+  function toggleIndefinite(id, checked) {
+    const d = debts.find(d => d.id === id); if (!d) return;
+    d.indefinite = checked;
+    if (checked) d.months = '';
+    // Swap input <-> chip without full re-render
+    const monthsField = document.getElementById(`months-field-${id}`);
+    const indefChip   = document.getElementById(`indef-chip-${id}`);
+    if (monthsField) monthsField.style.display = checked ? 'none' : 'block';
+    if (indefChip)   indefChip.style.display   = checked ? 'block' : 'none';
+  }
+
+  function renderDebts() {
+    const list = document.getElementById('debts-list');
+    list.innerHTML = '';
+    debts.forEach(d => {
+      const opts = DEBT_CATEGORIES.map(c =>
+        `<option value="${c}" ${d.category === c ? 'selected' : ''}>${c}</option>`
+      ).join('');
+
+      const div = document.createElement('div');
+      div.className = 'list-item';
+      div.innerHTML = `
+        <div class="grid-2">
+          <div>
+            <div class="ifl">Category</div>
+            <select onchange="updateDebt(${d.id},'category',this.value)">
+              <option value="" disabled ${!d.category ? 'selected' : ''}>Select type…</option>
+              ${opts}
+            </select>
+          </div>
+          <div>
+            <div class="ifl">Label (optional)</div>
+            <input type="text" placeholder="e.g. Honda Civic"
+              value="${esc(d.label)}" oninput="updateDebt(${d.id},'label',this.value)"/>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <div class="ifl">Balance Owed ($)</div>
+            <input type="number" placeholder="10000" value="${d.total}"
+              oninput="updateDebt(${d.id},'total',this.value)" min="0" step="0.01"/>
+          </div>
+          <div>
+            <div class="ifl">Monthly Payment ($)</div>
+            <input type="number" placeholder="250" value="${d.monthly}"
+              oninput="updateDebt(${d.id},'monthly',this.value)" min="0" step="0.01"/>
+          </div>
+        </div>
+        <div class="grid-2" style="margin-bottom:0">
+          <div>
+            <div class="ifl">APR (%)
+              <span class="autofill-badge" id="apr-badge-${d.id}"
+                style="display:${d.aprAutofilled ? 'inline-block' : 'none'}">auto-filled</span>
+            </div>
+            <input type="number" placeholder="e.g. 6.8" value="${d.apr}"
+              id="apr-input-${d.id}" oninput="overrideApr(${d.id},this.value)"
+              min="0" max="100" step="0.1"/>
+            <div class="apr-hint ${d.aprAutofilled ? 'visible' : ''}" id="apr-hint-${d.id}">
+              ↑ Based on avg ${d.category} rate — override if you know yours
+            </div>
+          </div>
+          <div>
+            <div class="ifl">Months Remaining</div>
+            <div id="months-field-${d.id}" style="display:${d.indefinite ? 'none' : 'block'}">
+              <input type="number" placeholder="36" value="${d.months}"
+                oninput="updateDebt(${d.id},'months',this.value)" min="1"/>
+            </div>
+            <div id="indef-chip-${d.id}" class="indefinite-chip"
+              style="display:${d.indefinite ? 'block' : 'none'}">∞ indefinite</div>
+            <label class="indefinite-toggle">
+              <input type="checkbox" ${d.indefinite ? 'checked' : ''}
+                onchange="toggleIndefinite(${d.id}, this.checked)"/>
+              <span class="toggle-track"></span>
+              <span class="toggle-label">No fixed end date</span>
+            </label>
+          </div>
+        </div>
+        <div class="item-remove-row">
+          <button class="item-remove" onclick="removeDebt(${d.id})">✕ Remove</button>
+        </div>`;
+      list.appendChild(div);
+    });
+  }
+
+  /* ─── HELPERS ─── */
+  function esc(str) { return String(str||'').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+  function fmt(n)   { return '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits:2, maximumFractionDigits:2 }); }
+
+  /* ─── SUMMARY ─── */
+  function renderSummary() {
+    const name     = document.getElementById('name').value.trim();
+    const savings  = document.getElementById('savings').value;
+    const income   = document.getElementById('income').value;
+    const expenses = document.getElementById('expenses').value;
+    const credit   = document.getElementById('credit').value;
+    const surplus  = parseFloat(income) - parseFloat(expenses);
+    const totalDebt = debts.reduce((s,d) => s + (parseFloat(d.total)||0), 0);
+
+    document.getElementById('summary-grid').innerHTML = `
+      <div class="summary-item"><div class="s-label">Name</div><div class="s-value" style="color:var(--text)">${name}</div></div>
+      <div class="summary-item"><div class="s-label">Current Savings</div><div class="s-value">${fmt(savings)}</div></div>
+      <div class="summary-item"><div class="s-label">Monthly Income</div><div class="s-value">${fmt(income)}</div></div>
+      <div class="summary-item"><div class="s-label">Monthly Expenses</div><div class="s-value">${fmt(expenses)}</div></div>
+      <div class="summary-item"><div class="s-label">Credit Limit</div><div class="s-value">${fmt(credit)}</div></div>
+      <div class="summary-item"><div class="s-label">Monthly Surplus</div>
+        <div class="s-value" style="color:${surplus>=0?'var(--green)':'var(--red)'}">${fmt(surplus)}</div></div>
+      ${totalDebt > 0 ? `<div class="summary-item" style="grid-column:1/-1">
+        <div class="s-label">Total Debt Entered</div>
+        <div class="s-value" style="color:var(--red)">${fmt(totalDebt)}</div></div>` : ''}
+    `;
+
+    document.getElementById('goals-pills').innerHTML = goals.length
+      ? goals.map(g => `<span class="goal-pill">🎯 ${g.name} — ${fmt(g.amount)} in ${g.months}mo</span>`).join('')
+      : `<span class="no-items">No goals added</span>`;
+
+    document.getElementById('debts-pills').innerHTML = debts.length
+      ? debts.map(d => {
+          const timeline = d.indefinite ? '∞' : `${d.months}mo`;
+          return `<span class="debt-pill">💳 ${d.label||d.category} — ${fmt(d.total)} @ ${d.apr}% APR · ${timeline}</span>`;
+        }).join('')
+      : `<span class="no-items">No debts — nice!</span>`;
+  }
+
+  /* ─── SUBMIT ─── */
+  async function submitData() {
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = 'Saving...';
+
+    const payload = {
+      name:             document.getElementById('name').value.trim(),
+      current_savings:  parseFloat(document.getElementById('savings').value),
+      average_income:   parseFloat(document.getElementById('income').value),
+      average_expenses: parseFloat(document.getElementById('expenses').value),
+      credit_limit:     parseFloat(document.getElementById('credit').value),
+      savings_goals: goals.map(g => ({
+        name: g.name, target_amount: parseFloat(g.amount), timeframe_months: parseInt(g.months)
+      })),
+      debts: debts.map(d => ({
+        category:         d.category === 'Custom' ? (d.label||'Other') : d.category,
+        label:            d.label || d.category,
+        total_amount:     parseFloat(d.total),
+        monthly_payment:  parseFloat(d.monthly),
+        apr:              parseFloat(d.apr),
+        months_remaining: d.indefinite ? null : parseInt(d.months)
+      }))
+    };
+
+    try {
+      const res = await fetch(`${API_BASE}/onboard/`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      const params = new URLSearchParams({ name: payload.name });
+      window.location.href = `dashboard.html?${params}`;
+    } catch (err) {
+      const errEl = document.getElementById('err-4');
+      errEl.textContent = `Couldn't reach the server. Is your backend running? (${err.message})`;
+      errEl.style.display = 'block'; errEl.classList.add('visible');
+      btn.disabled = false; btn.textContent = 'Activate DebtShield 🛡';
+    }
+  }
+</script>
+</body>
+</html>

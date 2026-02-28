@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DebtShield — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:         #090e1a;
+  --surface:    #111827;
+  --surface2:   #1a2540;
+  --border:     #1e2d4a;
+  --green:      #00e5a0;
+  --green-dim:  #00e5a020;
+  --green-mid:  #00e5a060;
+  --text:       #e8edf5;
+  --text-muted: #6b7a99;
+  --red:        #ff4d6d;
+  --yellow:     #ffd166;
+  --sidebar-w:  220px;
+}
+
+body {
+  font-family: 'Syne', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+}
+body::before {
+  content: '';
+  position: fixed; top: -20%; left: 30%;
+  width: 600px; height: 600px;
+  background: radial-gradient(ellipse, #00e5a00a 0%, transparent 65%);
+  pointer-events: none; z-index: 0;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-height: 100vh;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 1.5rem 0;
+  position: fixed; left: 0; top: 0; bottom: 0;
+  z-index: 100;
+}
+.sidebar-brand {
+  display: flex; align-items: center; gap: 0.55rem;
+  padding: 0 1.4rem 1.8rem;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1.2rem;
+}
+.sidebar-brand-icon {
+  width: 30px; height: 30px; background: var(--green);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+}
+.sidebar-brand-name { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.02em; }
+.sidebar-brand-name span { color: var(--green); }
+
+.nav-item {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.65rem 1.4rem;
+  cursor: pointer; font-size: 0.88rem; font-weight: 600;
+  color: var(--text-muted);
+  border-left: 3px solid transparent;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+  user-select: none;
+}
+.nav-item:hover { color: var(--text); background: var(--surface2); }
+.nav-item.active { color: var(--green); border-left-color: var(--green); background: var(--green-dim); }
+.nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+.sidebar-footer {
+  margin-top: auto; padding: 1.2rem 1.4rem 0;
+  border-top: 1px solid var(--border);
+}
+.user-chip {
+  display: flex; align-items: center; gap: 0.6rem;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.6rem 0.8rem;
+}
+.user-avatar {
+  width: 28px; height: 28px; background: var(--green-mid);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 700; color: var(--bg);
+}
+.user-name { font-size: 0.82rem; font-weight: 600; color: var(--text); }
+
+/* ── MAIN ── */
+.main {
+  margin-left: var(--sidebar-w);
+  flex: 1; padding: 2rem 2.5rem;
+  position: relative; z-index: 1;
+  max-width: 960px;
+}
+
+.page { display: none; animation: fadeUp 0.3s ease; }
+.page.active { display: block; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
+.page-header { margin-bottom: 2rem; }
+.page-title { font-size: 1.8rem; font-weight: 800; letter-spacing: -0.03em; }
+.page-sub { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.3rem; }
+
+/* ── SHIELD SCORE ── */
+.score-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 20px; padding: 2rem;
+  margin-bottom: 1.5rem;
+  display: flex; align-items: center; gap: 2.5rem;
+}
+.gauge-wrap { position: relative; width: 160px; height: 90px; flex-shrink: 0; }
+.gauge-wrap svg { overflow: visible; }
+.score-info { flex: 1; }
+.score-label {
+  font-family: 'DM Mono', monospace; font-size: 0.7rem;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--text-muted); margin-bottom: 0.4rem;
+}
+.score-value { font-size: 3.5rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin-bottom: 0.5rem; }
+.score-band {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  font-family: 'DM Mono', monospace; font-size: 0.78rem;
+  padding: 0.25rem 0.7rem; border-radius: 99px; border: 1px solid;
+}
+.score-desc { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.8rem; line-height: 1.5; max-width: 360px; }
+
+/* Score recalculating spinner */
+.score-recalc {
+  display: none; align-items: center; gap: 0.5rem;
+  font-family: 'DM Mono', monospace; font-size: 0.72rem;
+  color: var(--text-muted); margin-top: 0.6rem;
+}
+.score-recalc.visible { display: flex; }
+.spin {
+  width: 12px; height: 12px; border: 2px solid var(--border);
+  border-top-color: var(--green); border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── STATS ROW ── */
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.2rem 1.4rem; }
+.stat-card .sc-label { font-family: 'DM Mono', monospace; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.4rem; }
+.stat-card .sc-value { font-family: 'DM Mono', monospace; font-size: 1.35rem; font-weight: 500; }
+
+/* ── TABS ── */
+.tab-bar {
+  display: flex; gap: 0; margin-bottom: 1.5rem;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 4px; width: fit-content;
+}
+.tab-btn {
+  padding: 0.5rem 1.2rem; border-radius: 9px; border: none;
+  background: transparent; color: var(--text-muted);
+  font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 600;
+  cursor: pointer; transition: background 0.2s, color 0.2s;
+}
+.tab-btn.active { background: var(--surface2); color: var(--text); }
+.tab-btn:hover:not(.active) { color: var(--text); }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; animation: fadeUp 0.2s ease; }
+
+/* ── PANELS ── */
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; }
+.panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+.panel-title { font-size: 1rem; font-weight: 700; }
+.panel-add-btn {
+  background: var(--green-dim); border: 1px solid var(--green-mid);
+  border-radius: 8px; padding: 0.35rem 0.8rem;
+  color: var(--green); font-family: 'Syne', sans-serif; font-size: 0.78rem; font-weight: 700;
+  cursor: pointer; transition: background 0.2s;
+}
+.panel-add-btn:hover { background: #00e5a035; }
+.panel-add-btn.red { background: #ff4d6d10; border-color: #ff4d6d40; color: #ff8fa3; }
+.panel-add-btn.red:hover { background: #ff4d6d20; }
+
+/* ── ITEM ROWS ── */
+.item-rows { display: flex; flex-direction: column; gap: 0.6rem; }
+.item-row {
+  display: flex; align-items: center; gap: 1rem;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.85rem 1rem;
+  transition: border-color 0.2s;
+}
+.item-row:hover { border-color: #2e4070; }
+.item-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; flex-shrink: 0;
+}
+.item-icon.goal { background: var(--green-dim); }
+.item-icon.debt { background: #ff4d6d15; }
+.item-main { flex: 1; min-width: 0; }
+.item-name { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-meta { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.15rem; }
+.item-amount { font-family: 'DM Mono', monospace; font-size: 0.95rem; font-weight: 500; text-align: right; flex-shrink: 0; }
+.progress-bar-wrap { width: 100%; height: 4px; background: var(--border); border-radius: 99px; margin-top: 0.5rem; overflow: hidden; }
+.progress-bar-fill { height: 100%; border-radius: 99px; background: var(--green); transition: width 0.6s ease; }
+.item-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+.icon-btn {
+  width: 28px; height: 28px; background: transparent; border: 1px solid var(--border);
+  border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: 0.8rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+.icon-btn:hover { color: var(--text); border-color: #3a4f7a; background: var(--surface2); }
+.icon-btn.del:hover { color: var(--red); border-color: var(--red); background: #ff4d6d10; }
+.empty-state { text-align: center; padding: 1.5rem; color: var(--text-muted); font-size: 0.85rem; font-family: 'DM Mono', monospace; }
+
+/* ── PROFILE FORM ── */
+.profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.pfield { display: flex; flex-direction: column; gap: 0.35rem; }
+.pfield label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+.pfield input {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.7rem 0.9rem;
+  color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.9rem;
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+}
+.pfield input:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+.pfield input::placeholder { color: var(--text-muted); }
+.profile-save-row { margin-top: 1.2rem; display: flex; align-items: center; gap: 1rem; }
+.profile-save-btn {
+  background: var(--green); border: none; border-radius: 10px;
+  padding: 0.75rem 1.8rem; color: var(--bg);
+  font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.9rem;
+  cursor: pointer; transition: opacity 0.2s;
+}
+.profile-save-btn:hover { opacity: 0.88; }
+.profile-saved-msg {
+  font-family: 'DM Mono', monospace; font-size: 0.78rem;
+  color: var(--green); display: none;
+}
+.profile-saved-msg.visible { display: block; }
+
+/* ── MODAL ── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(9,14,26,0.85);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 18px; padding: 2rem;
+  width: 100%; max-width: 460px; margin: 1rem;
+  transform: translateY(16px); transition: transform 0.25s ease;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-title { font-size: 1.2rem; font-weight: 800; margin-bottom: 0.4rem; }
+.modal-sub { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+.mfield { margin-bottom: 1rem; }
+.mfield label { display: block; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 0.35rem; }
+.mfield input, .mfield select {
+  width: 100%; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 0.7rem 0.9rem; color: var(--text);
+  font-family: 'DM Mono', monospace; font-size: 0.9rem;
+  outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: none; -webkit-appearance: none;
+}
+.mfield select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a99' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem; cursor: pointer;
+}
+.mfield select option { background: #1a2540; }
+.mfield input:focus, .mfield select:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+.mfield input::placeholder { color: var(--text-muted); }
+.mfield-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+.modal-toggle-row { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; cursor: pointer; user-select: none; }
+.modal-toggle-row input[type="checkbox"] { display: none; }
+.m-toggle-track { width: 32px; height: 18px; background: var(--border); border-radius: 99px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+.m-toggle-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; background: var(--text-muted); border-radius: 50%; transition: transform 0.2s, background 0.2s; }
+.modal-toggle-row input:checked + .m-toggle-track { background: #ffd16640; }
+.modal-toggle-row input:checked + .m-toggle-track::after { transform: translateX(14px); background: var(--yellow); }
+.m-toggle-label { font-size: 0.78rem; font-family: 'DM Mono', monospace; color: var(--text-muted); }
+.modal-toggle-row input:checked ~ .m-toggle-label { color: var(--yellow); }
+.autofill-hint { font-size: 0.7rem; color: var(--yellow); font-family: 'DM Mono', monospace; margin-top: 0.3rem; }
+.modal-btns { display: flex; gap: 0.7rem; margin-top: 1.5rem; }
+.modal-cancel { flex: 0 0 auto; background: transparent; border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 1.2rem; color: var(--text-muted); font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.88rem; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.modal-cancel:hover { border-color: var(--text-muted); color: var(--text); }
+.modal-save { flex: 1; background: var(--green); border: none; border-radius: 10px; padding: 0.8rem 1.5rem; color: var(--bg); font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.9rem; cursor: pointer; transition: opacity 0.2s; }
+.modal-save:hover { opacity: 0.88; }
+.modal-save.red-save { background: var(--red); color: #fff; }
+
+/* ── LEARN PAGE ── */
+.learn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.term-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.4rem 1.5rem; cursor: pointer; transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s; position: relative; overflow: hidden; }
+.term-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 16px 16px 0 0; }
+.term-card.cat-credit::before  { background: var(--green); }
+.term-card.cat-debt::before    { background: var(--red); }
+.term-card.cat-savings::before { background: var(--yellow); }
+.term-card.cat-general::before { background: #7c8cff; }
+.term-card:hover { border-color: #2e4070; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.3); }
+.term-card.flipped .term-front { display: none; }
+.term-card.flipped .term-back  { display: block; }
+.term-back { display: none; }
+.term-category { font-family: 'DM Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.6rem; }
+.cat-credit  .term-category { color: var(--green); }
+.cat-debt    .term-category { color: var(--red); }
+.cat-savings .term-category { color: var(--yellow); }
+.cat-general .term-category { color: #7c8cff; }
+.term-word { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+.term-teaser { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+.term-tap-hint { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--text-muted); margin-top: 1rem; display: flex; align-items: center; gap: 0.3rem; }
+.term-back-label { font-family: 'DM Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.6rem; }
+.term-definition { font-size: 0.88rem; line-height: 1.65; color: var(--text); }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+
+@media (max-width: 700px) {
+  .sidebar { transform: translateX(-100%); }
+  .main { margin-left: 0; padding: 1.2rem; }
+  .two-col { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .score-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
+  .profile-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════ SIDEBAR ══════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="sidebar-brand-icon">🛡</div>
+    <div class="sidebar-brand-name">Debt<span>Shield</span></div>
+  </div>
+  <nav>
+    <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+      <span class="nav-icon">◈</span> Dashboard
+    </div>
+    <div class="nav-item" onclick="showPage('learn')" id="nav-learn">
+      <span class="nav-icon">◎</span> Learn
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-chip">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <div class="user-name" id="user-name-chip">Loading…</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<main class="main">
+
+  <!-- ── DASHBOARD PAGE ── -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-header">
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub">Your financial defence overview</div>
+    </div>
+
+    <!-- Shield Score -->
+    <div class="score-card">
+      <div class="gauge-wrap">
+        <svg width="160" height="90" viewBox="0 0 160 90">
+          <path d="M 16 88 A 64 64 0 0 1 144 88"
+            fill="none" stroke="#1e2d4a" stroke-width="10" stroke-linecap="round"/>
+          <path id="gauge-arc" d="M 16 88 A 64 64 0 0 1 144 88"
+            fill="none" stroke="#00e5a0" stroke-width="10" stroke-linecap="round"
+            stroke-dasharray="201" stroke-dashoffset="201"
+            style="transition: stroke-dashoffset 1.2s cubic-bezier(0.34,1.56,0.64,1), stroke 0.5s ease"/>
+          <text x="80" y="78" text-anchor="middle"
+            font-family="Syne, sans-serif" font-size="28" font-weight="800"
+            fill="#e8edf5" id="gauge-text">—</text>
+        </svg>
+      </div>
+      <div class="score-info">
+        <div class="score-label">Shield Score</div>
+        <div class="score-value" id="score-display" style="color:var(--text-muted)">—</div>
+        <div class="score-band" id="score-band"
+          style="color:var(--text-muted); border-color:var(--border); background:var(--surface2)">
+          <span>●</span> <span id="score-band-label">Calculating…</span>
+        </div>
+        <div class="score-desc" id="score-desc">Fetching your Shield Score from the server…</div>
+        <div class="score-recalc" id="score-recalc">
+          <div class="spin"></div> Recalculating score…
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="sc-label">Monthly Surplus</div>
+        <div class="sc-value" style="color:var(--green)" id="stat-surplus">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-label">Total Debt</div>
+        <div class="sc-value" style="color:var(--red)" id="stat-debt">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="sc-label">Active Goals</div>
+        <div class="sc-value" id="stat-goals">—</div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab('goals')"   id="tab-goals">Savings Goals</button>
+      <button class="tab-btn"        onclick="showTab('debts')"   id="tab-debts">Debts</button>
+      <button class="tab-btn"        onclick="showTab('profile')" id="tab-profile">Profile</button>
+    </div>
+
+    <!-- Goals tab -->
+    <div class="tab-panel active" id="tabpanel-goals">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Savings Goals</div>
+          <button class="panel-add-btn" onclick="openGoalModal()">+ Add Goal</button>
+        </div>
+        <div class="item-rows" id="goals-list">
+          <div class="empty-state">No goals yet — add one above</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Debts tab -->
+    <div class="tab-panel" id="tabpanel-debts">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Debts</div>
+          <button class="panel-add-btn red" onclick="openDebtModal()">+ Add Debt</button>
+        </div>
+        <div class="item-rows" id="debts-list">
+          <div class="empty-state">No debts recorded</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile tab -->
+    <div class="tab-panel" id="tabpanel-profile">
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-title">Your Profile</div>
+        </div>
+        <div class="profile-grid">
+          <div class="pfield">
+            <label>Monthly Income ($)</label>
+            <input type="number" id="prof-income" placeholder="0.00" min="0" step="0.01"/>
+          </div>
+          <div class="pfield">
+            <label>Monthly Expenses ($)</label>
+            <input type="number" id="prof-expenses" placeholder="0.00" min="0" step="0.01"/>
+            <small style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--text-muted);margin-top:0.3rem">Include all outgoings — rent, food, bills, and debt payments</small>
+          </div>
+          <div class="pfield">
+            <label>Current Savings ($)</label>
+            <input type="number" id="prof-savings" placeholder="0.00" min="0" step="0.01"/>
+          </div>
+          <div class="pfield">
+            <label>Total Credit Limit ($)</label>
+            <input type="number" id="prof-credit" placeholder="0.00" min="0" step="0.01"/>
+          </div>
+        </div>
+        <div class="profile-save-row">
+          <button class="profile-save-btn" onclick="saveProfile()">Save &amp; Recalculate</button>
+          <span class="profile-saved-msg" id="profile-saved-msg">✓ Saved — score updated</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /dashboard page -->
+
+  <!-- ── LEARN PAGE ── -->
+  <div class="page" id="page-learn">
+    <div class="page-header">
+      <div class="page-title">Learn</div>
+      <div class="page-sub">Tap any card to see the full definition</div>
+    </div>
+    <div class="learn-grid" id="learn-grid"></div>
+  </div>
+
+</main>
+
+<!-- ══════════════════ MODALS ══════════════════ -->
+
+<!-- Goal modal -->
+<div class="modal-overlay" id="goal-modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="goal-modal-title">Add Savings Goal</div>
+    <div class="modal-sub">Set a target and we'll track your progress.</div>
+    <input type="hidden" id="goal-edit-id" value="">
+    <div class="mfield">
+      <label>Goal Name</label>
+      <input type="text" id="gm-name" placeholder="e.g. Emergency Fund"/>
+    </div>
+    <div class="mfield-row">
+      <div class="mfield">
+        <label>Target Amount ($)</label>
+        <input type="number" id="gm-amount" placeholder="1000" min="0" step="0.01"/>
+      </div>
+      <div class="mfield">
+        <label>Timeframe (months)</label>
+        <input type="number" id="gm-months" placeholder="12" min="1"/>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal('goal-modal-overlay')">Cancel</button>
+      <button class="modal-save" onclick="saveGoal()">Save Goal</button>
+    </div>
+  </div>
+</div>
+
+<!-- Debt modal -->
+<div class="modal-overlay" id="debt-modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="debt-modal-title">Add Debt</div>
+    <div class="modal-sub">Track what you owe so DebtShield can protect you accurately.</div>
+    <input type="hidden" id="debt-edit-id" value="">
+    <div class="mfield-row">
+      <div class="mfield">
+        <label>Category</label>
+        <select id="dm-category" onchange="debtCategoryChanged()">
+          <option value="" disabled selected>Select…</option>
+          <option>Mortgage</option>
+          <option>Car Loan</option>
+          <option>Student Loan</option>
+          <option>Credit Card</option>
+          <option>Personal Loan</option>
+          <option>Medical</option>
+          <option>Other</option>
+          <option>Custom</option>
+        </select>
+      </div>
+      <div class="mfield">
+        <label>Label (optional)</label>
+        <input type="text" id="dm-label" placeholder="e.g. Honda Civic"/>
+      </div>
+    </div>
+    <div class="mfield-row">
+      <div class="mfield">
+        <label>Balance Owed ($)</label>
+        <input type="number" id="dm-total" placeholder="10000" min="0" step="0.01"/>
+      </div>
+      <div class="mfield">
+        <label>Monthly Payment ($)</label>
+        <input type="number" id="dm-monthly" placeholder="250" min="0" step="0.01"/>
+      </div>
+    </div>
+    <div class="mfield-row">
+      <div class="mfield">
+        <label>APR (%)</label>
+        <input type="number" id="dm-apr" placeholder="e.g. 6.8" min="0" max="100" step="0.1"
+          oninput="aprManuallyEdited = true"/>
+        <div class="autofill-hint" id="dm-apr-hint" style="display:none">
+          ↑ Auto-filled from category avg — override if known
+        </div>
+      </div>
+      <div class="mfield">
+        <label>Months Remaining</label>
+        <input type="number" id="dm-months" placeholder="36" min="1" style="display:block"/>
+        <div id="dm-indef-chip" style="display:none;font-family:'DM Mono',monospace;font-size:0.88rem;color:var(--yellow);padding:0.35rem 0;border-bottom:1px solid var(--border)">∞ indefinite</div>
+        <label class="modal-toggle-row">
+          <input type="checkbox" id="dm-indefinite" onchange="toggleDebtIndefinite()"/>
+          <span class="m-toggle-track"></span>
+          <span class="m-toggle-label">No fixed end date</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeModal('debt-modal-overlay')">Cancel</button>
+      <button class="modal-save red-save" onclick="saveDebt()">Save Debt</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   CONFIG
+════════════════════════════════════════ */
+const API_BASE     = 'http://localhost:8000';
+const FALLBACK_SCORE = 70; // shown only if API is unreachable
+
+/* ════════════════════════════════════════
+   STATE  — starts empty, populated from API
+════════════════════════════════════════ */
+let goals   = [];
+let debts   = [];
+let profile = { income: 0, expenses: 0, savings: 0, credit: 0 };
+
+const DEFAULT_APR = {
+  'Mortgage': 6.8, 'Car Loan': 7.1, 'Student Loan': 5.5,
+  'Credit Card': 24.6, 'Personal Loan': 12.4, 'Medical': 0.0, 'Other': 10.0,
+};
+let aprManuallyEdited = false;
+
+/* ════════════════════════════════════════
+   NAVIGATION
+════════════════════════════════════════ */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById(`page-${id}`).classList.add('active');
+  document.getElementById(`nav-${id}`).classList.add('active');
+}
+
+function showTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`tabpanel-${id}`).classList.add('active');
+  document.getElementById(`tab-${id}`).classList.add('active');
+}
+
+/* ════════════════════════════════════════
+   SHIELD SCORE GAUGE
+════════════════════════════════════════ */
+function scoreColor(s) {
+  if (s >= 80) return { color: '#00e5a0', label: 'Excellent', bg: '#00e5a015', border: '#00e5a040' };
+  if (s >= 60) return { color: '#00e5a0', label: 'Good',      bg: '#00e5a015', border: '#00e5a040' };
+  if (s >= 40) return { color: '#ffd166', label: 'Fair',      bg: '#ffd16615', border: '#ffd16640' };
+  if (s >= 20) return { color: '#ff8c42', label: 'At Risk',   bg: '#ff8c4215', border: '#ff8c4240' };
+  return               { color: '#ff4d6d', label: 'Critical', bg: '#ff4d6d15', border: '#ff4d6d40' };
+}
+
+function renderGauge(score) {
+  const arcLength = 201;
+  const offset    = arcLength - (score / 100) * arcLength;
+  const { color, label, bg, border } = scoreColor(score);
+  const scoreRounded = Math.round(score * 10) / 10;
+
+  setTimeout(() => {
+    document.getElementById('gauge-arc').style.strokeDashoffset = offset;
+    document.getElementById('gauge-arc').style.stroke = color;
+  }, 100);
+
+  document.getElementById('gauge-text').setAttribute('fill', color);
+  document.getElementById('gauge-text').textContent = scoreRounded;
+  document.getElementById('score-display').textContent = scoreRounded;
+  document.getElementById('score-display').style.color = color;
+  document.getElementById('score-band').style.cssText =
+    `color:${color}; border-color:${border}; background:${bg}`;
+  document.getElementById('score-band-label').textContent = label;
+
+  const descs = {
+    'Excellent': 'Outstanding financial health. Your defences are at maximum strength.',
+    'Good':      'Your financial defences are solid. Keep reducing high-interest debt and maintaining your savings momentum.',
+    'Fair':      'Some areas need attention. Focus on reducing high-APR debt and building your emergency fund.',
+    'At Risk':   'Several warning signs detected. Prioritise paying down debt and avoid new credit commitments.',
+    'Critical':  'Immediate action needed. Consider speaking with a financial counsellor.',
+  };
+  document.getElementById('score-desc').textContent = descs[label];
+}
+
+/* ════════════════════════════════════════
+   SCORE FETCH  (called on load + after any save)
+════════════════════════════════════════ */
+async function refreshScore() {
+  const recalcEl = document.getElementById('score-recalc');
+  recalcEl.classList.add('visible');
+
+  try {
+    const res = await fetch(`${API_BASE}/score/${encodeURIComponent(userName)}`);
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    renderGauge(data.shield_score);
+  } catch (err) {
+    console.warn('Score fetch failed, using fallback.', err);
+    renderGauge(FALLBACK_SCORE);
+  } finally {
+    recalcEl.classList.remove('visible');
+  }
+}
+
+/* ════════════════════════════════════════
+   STATS
+════════════════════════════════════════ */
+function updateStats() {
+  const surplus   = profile.income - profile.expenses;
+  const totalDebt = debts.reduce((s, d) => s + d.total, 0);
+
+  const fmtUSD = n => '$' + n.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  const surplusEl = document.getElementById('stat-surplus');
+  surplusEl.textContent = fmtUSD(surplus);
+  surplusEl.style.color = surplus >= 0 ? 'var(--green)' : 'var(--red)';
+
+  document.getElementById('stat-debt').textContent  = fmtUSD(totalDebt);
+  document.getElementById('stat-goals').textContent = goals.length;
+}
+
+/* ════════════════════════════════════════
+   GOALS RENDER
+════════════════════════════════════════ */
+function renderGoals() {
+  const list = document.getElementById('goals-list');
+  if (goals.length === 0) {
+    list.innerHTML = '<div class="empty-state">No goals yet — add one above</div>'; return;
+  }
+  list.innerHTML = '';
+  goals.forEach(g => {
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `
+      <div class="item-icon goal">🎯</div>
+      <div class="item-main">
+        <div class="item-name">${esc(g.name)}</div>
+        <div class="item-meta">Target in ${g.months}mo</div>
+      </div>
+      <div class="item-amount" style="color:var(--green)">
+        ${fmtUSD(g.target)}
+      </div>
+      <div class="item-actions">
+        <button class="icon-btn" onclick="openGoalModal(${g.id})" title="Edit">✎</button>
+        <button class="icon-btn del" onclick="deleteGoal(${g.id})" title="Delete">✕</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+/* ════════════════════════════════════════
+   DEBTS RENDER
+════════════════════════════════════════ */
+function renderDebts() {
+  const list = document.getElementById('debts-list');
+  if (debts.length === 0) {
+    list.innerHTML = '<div class="empty-state">No debts recorded — great!</div>'; return;
+  }
+  list.innerHTML = '';
+  debts.forEach(d => {
+    const timeline = d.indefinite ? '∞ indefinite' : `${d.months}mo remaining`;
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.innerHTML = `
+      <div class="item-icon debt">💳</div>
+      <div class="item-main">
+        <div class="item-name">${esc(d.label || d.category)}</div>
+        <div class="item-meta">${d.apr}% APR · ${timeline}</div>
+      </div>
+      <div class="item-amount" style="color:var(--red)">
+        ${fmtUSD(d.total)}
+      </div>
+      <div class="item-actions">
+        <button class="icon-btn" onclick="openDebtModal(${d.id})" title="Edit">✎</button>
+        <button class="icon-btn del" onclick="deleteDebt(${d.id})" title="Delete">✕</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+/* ════════════════════════════════════════
+   GOAL CRUD
+════════════════════════════════════════ */
+function openGoalModal(id) {
+  document.getElementById('goal-edit-id').value = id || '';
+  document.getElementById('goal-modal-title').textContent = id ? 'Edit Savings Goal' : 'Add Savings Goal';
+  if (id) {
+    const g = goals.find(g => g.id === id);
+    document.getElementById('gm-name').value   = g.name;
+    document.getElementById('gm-amount').value = g.target;
+    document.getElementById('gm-months').value = g.months;
+  } else {
+    document.getElementById('gm-name').value   = '';
+    document.getElementById('gm-amount').value = '';
+    document.getElementById('gm-months').value = '';
+  }
+  openModal('goal-modal-overlay');
+}
+
+function saveGoal() {
+  const name   = document.getElementById('gm-name').value.trim();
+  const amount = parseFloat(document.getElementById('gm-amount').value);
+  const months = parseInt(document.getElementById('gm-months').value);
+  if (!name || isNaN(amount) || isNaN(months)) { alert('Please fill in all fields.'); return; }
+
+  const editId = document.getElementById('goal-edit-id').value;
+  if (editId) {
+    const g = goals.find(g => g.id === +editId);
+    if (g) { g.name = name; g.target = amount; g.months = months; }
+  } else {
+    goals.push({ id: Date.now(), name, target: amount, months });
+  }
+  closeModal('goal-modal-overlay');
+  renderGoals(); updateStats();
+  syncAndRefresh();
+}
+
+function deleteGoal(id) {
+  goals = goals.filter(g => g.id !== id);
+  renderGoals(); updateStats();
+  syncAndRefresh();
+}
+
+/* ════════════════════════════════════════
+   DEBT CRUD
+════════════════════════════════════════ */
+function openDebtModal(id) {
+  aprManuallyEdited = false;
+  document.getElementById('debt-edit-id').value = id || '';
+  document.getElementById('debt-modal-title').textContent = id ? 'Edit Debt' : 'Add Debt';
+  document.getElementById('dm-apr-hint').style.display = 'none';
+
+  if (id) {
+    const d = debts.find(d => d.id === id);
+    document.getElementById('dm-category').value        = d.category;
+    document.getElementById('dm-label').value           = d.label || '';
+    document.getElementById('dm-total').value           = d.total;
+    document.getElementById('dm-monthly').value         = d.monthly;
+    document.getElementById('dm-apr').value             = d.apr;
+    document.getElementById('dm-indefinite').checked    = d.indefinite;
+    document.getElementById('dm-months').value          = d.months || '';
+    toggleDebtIndefinite(d.indefinite);
+  } else {
+    ['dm-category','dm-label','dm-total','dm-monthly','dm-apr','dm-months'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = '';
+    });
+    document.getElementById('dm-indefinite').checked = false;
+    toggleDebtIndefinite(false);
+  }
+  openModal('debt-modal-overlay');
+}
+
+function debtCategoryChanged() {
+  const cat = document.getElementById('dm-category').value;
+  if (cat !== 'Custom' && DEFAULT_APR[cat] !== undefined && !aprManuallyEdited) {
+    document.getElementById('dm-apr').value = DEFAULT_APR[cat];
+    document.getElementById('dm-apr-hint').style.display = 'block';
+  }
+  if (!document.getElementById('dm-label').value) {
+    document.getElementById('dm-label').value = cat !== 'Custom' ? cat : '';
+  }
+}
+
+function toggleDebtIndefinite(forceVal) {
+  const checked = forceVal !== undefined ? forceVal : document.getElementById('dm-indefinite').checked;
+  document.getElementById('dm-months').style.display     = checked ? 'none'  : 'block';
+  document.getElementById('dm-indef-chip').style.display = checked ? 'block' : 'none';
+  if (forceVal !== undefined) document.getElementById('dm-indefinite').checked = forceVal;
+}
+
+function saveDebt() {
+  const category  = document.getElementById('dm-category').value;
+  const label     = document.getElementById('dm-label').value.trim();
+  const total     = parseFloat(document.getElementById('dm-total').value);
+  const monthly   = parseFloat(document.getElementById('dm-monthly').value);
+  const apr       = parseFloat(document.getElementById('dm-apr').value);
+  const indefinite = document.getElementById('dm-indefinite').checked;
+  const months    = indefinite ? null : parseInt(document.getElementById('dm-months').value);
+
+  if (!category || isNaN(total) || isNaN(monthly) || isNaN(apr) || (!indefinite && isNaN(months))) {
+    alert('Please fill in all fields.'); return;
+  }
+
+  const editId = document.getElementById('debt-edit-id').value;
+  if (editId) {
+    const d = debts.find(d => d.id === +editId);
+    if (d) Object.assign(d, { category, label: label||category, total, monthly, apr, indefinite, months });
+  } else {
+    debts.push({ id: Date.now(), category, label: label||category, total, monthly, apr, indefinite, months });
+  }
+  closeModal('debt-modal-overlay');
+  renderDebts(); updateStats();
+  syncAndRefresh();
+}
+
+function deleteDebt(id) {
+  debts = debts.filter(d => d.id !== id);
+  renderDebts(); updateStats();
+  syncAndRefresh();
+}
+
+/* ════════════════════════════════════════
+   PROFILE EDIT
+════════════════════════════════════════ */
+function populateProfileForm() {
+  document.getElementById('prof-income').value   = profile.income   || '';
+  document.getElementById('prof-expenses').value = profile.expenses || '';
+  document.getElementById('prof-savings').value  = profile.savings  || '';
+  document.getElementById('prof-credit').value   = profile.credit   || '';
+}
+
+function saveProfile() {
+  const income   = parseFloat(document.getElementById('prof-income').value);
+  const expenses = parseFloat(document.getElementById('prof-expenses').value);
+  const savings  = parseFloat(document.getElementById('prof-savings').value);
+  const credit   = parseFloat(document.getElementById('prof-credit').value);
+
+  if ([income, expenses, savings, credit].some(isNaN)) {
+    alert('Please fill in all profile fields.'); return;
+  }
+
+  profile = { income, expenses, savings, credit };
+  updateStats();
+  syncAndRefresh();
+
+  const msg = document.getElementById('profile-saved-msg');
+  msg.classList.add('visible');
+  setTimeout(() => msg.classList.remove('visible'), 3000);
+}
+
+/* ════════════════════════════════════════
+   SYNC + REFRESH  — pushes state to backend
+   then re-fetches the score
+════════════════════════════════════════ */
+async function syncAndRefresh() {
+  // Build the full payload matching UserOnboarding model
+  const payload = {
+    name:             userName,
+    current_savings:  profile.savings,
+    average_income:   profile.income,
+    average_expenses: profile.expenses,
+    credit_limit:     profile.credit,
+    savings_goals: goals.map(g => ({
+      name:             g.name,
+      target_amount:    g.target,
+      timeframe_months: g.months,
+    })),
+    debts: debts.map(d => ({
+      category:         d.category === 'Custom' ? (d.label || 'Other') : d.category,
+      label:            d.label || d.category,
+      total_amount:     d.total,
+      monthly_payment:  d.monthly,
+      apr:              d.apr,
+      months_remaining: d.indefinite ? null : d.months,
+    })),
+  };
+
+  try {
+    await fetch(`${API_BASE}/onboard/`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+  } catch (err) {
+    console.warn('Sync to backend failed:', err);
+  }
+
+  // Always refresh score, even if sync failed (backend may still have old data)
+  await refreshScore();
+}
+
+/* ════════════════════════════════════════
+   MODAL HELPERS
+════════════════════════════════════════ */
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+/* ════════════════════════════════════════
+   LEARN CARDS
+════════════════════════════════════════ */
+const TERMS = [
+  { word:'APR', category:'credit', cat_label:'Credit', teaser:'The annual cost of borrowing money, expressed as a percentage.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Credit Utilisation', category:'credit', cat_label:'Credit', teaser:'How much of your available credit you\'re currently using.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Credit Score', category:'credit', cat_label:'Credit', teaser:'A number that represents your creditworthiness to lenders.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'BNPL', category:'debt', cat_label:'Debt', teaser:'Buy Now, Pay Later — a short-term instalment credit product.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Minimum Payment', category:'debt', cat_label:'Debt', teaser:'The smallest amount you must pay on a debt each month.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Compound Interest', category:'debt', cat_label:'Debt', teaser:'Interest calculated on both principal and accumulated interest.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Emergency Fund', category:'savings', cat_label:'Savings', teaser:'A cash reserve set aside for unexpected expenses.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Net Worth', category:'savings', cat_label:'Savings', teaser:'What you own minus what you owe.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Debt-to-Income Ratio', category:'general', cat_label:'General', teaser:'Your monthly debt payments as a percentage of monthly income.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Revolving Credit', category:'credit', cat_label:'Credit', teaser:'A credit line you can borrow from repeatedly up to a limit.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Amortisation', category:'debt', cat_label:'Debt', teaser:'The process of paying off a debt through regular instalments.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+  { word:'Predatory Lending', category:'general', cat_label:'General', teaser:'Unfair or deceptive loan practices that exploit borrowers.', definition:'DEFINITION PLACEHOLDER — edit me!' },
+];
+
+function renderLearn() {
+  const grid = document.getElementById('learn-grid');
+  grid.innerHTML = '';
+  TERMS.forEach(t => {
+    const card = document.createElement('div');
+    card.className = `term-card cat-${t.category}`;
+    card.innerHTML = `
+      <div class="term-front">
+        <div class="term-category">${t.cat_label}</div>
+        <div class="term-word">${t.word}</div>
+        <div class="term-teaser">${t.teaser}</div>
+        <div class="term-tap-hint">↩ tap to see definition</div>
+      </div>
+      <div class="term-back">
+        <div class="term-back-label">${t.cat_label} · ${t.word}</div>
+        <div class="term-definition">${t.definition}</div>
+        <div class="term-tap-hint" style="margin-top:1rem">↩ tap to flip back</div>
+      </div>`;
+    card.addEventListener('click', () => card.classList.toggle('flipped'));
+    grid.appendChild(card);
+  });
+}
+
+/* ════════════════════════════════════════
+   HELPERS
+════════════════════════════════════════ */
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtUSD(n) {
+  return '$' + parseFloat(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+/* ════════════════════════════════════════
+   INIT — load user data from backend
+════════════════════════════════════════ */
+const urlParams = new URLSearchParams(window.location.search);
+const userName  = urlParams.get('name') || 'User';
+document.getElementById('user-name-chip').textContent = userName;
+document.getElementById('user-avatar').textContent    = userName.charAt(0).toUpperCase();
+
+async function init() {
+  // Try to load existing user data from backend
+  try {
+    const res = await fetch(`${API_BASE}/user/${encodeURIComponent(userName)}`);
+    if (res.ok) {
+      const data = await res.json();
+      profile = {
+        income:   data.average_income   || 0,
+        expenses: data.average_expenses || 0,
+        savings:  data.current_savings  || 0,
+        credit:   data.credit_limit     || 0,
+      };
+      goals = (data.savings_goals || []).map((g, i) => ({
+        id:     i + 1,
+        name:   g.name,
+        target: g.target_amount,
+        months: g.timeframe_months,
+      }));
+      debts = (data.debts || []).map((d, i) => ({
+        id:         i + 1,
+        category:   d.category,
+        label:      d.label,
+        total:      d.total_amount,
+        monthly:    d.monthly_payment,
+        apr:        d.apr,
+        indefinite: d.months_remaining === null,
+        months:     d.months_remaining,
+      }));
+    }
+  } catch (err) {
+    console.warn('Could not load user data from backend:', err);
+  }
+
+  populateProfileForm();
+  renderGoals();
+  renderDebts();
+  updateStats();
+  renderLearn();
+  await refreshScore();
+}
+
+init();
+</script>
+</body>
+</html>
