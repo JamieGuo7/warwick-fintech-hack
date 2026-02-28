@@ -22,7 +22,7 @@
   // ── STATE ────────────────────────────────────────────────────
   let state = {
     settings: null, session: null, history: [],
-    streak: { current: 0, best: 0 },
+    streak: { current: 0, best: 0 }, profile: null,
     panelOpen: false, modalVisible: false,
     currentAmount: null, currentRisk: null, scanInProgress: false,
     _modalAllowed: undefined, _interceptedBtn: null, _proceeding: false,
@@ -473,9 +473,15 @@
           </div>
           <div id="ds-streak-dots"></div>
         </div>
-        <div id="ds-activity-section">
-          <div id="ds-activity-title">RECENT ACTIVITY</div>
-          <div id="ds-activity-list"><div class="ds-activity-empty">No activity yet today</div></div>
+        <div id="ds-score-panel-section">
+          <div id="ds-score-panel-label">SHIELD SCORE</div>
+          <div id="ds-score-panel-row">
+            <div id="ds-score-panel-num">--</div>
+            <div id="ds-score-panel-band">--</div>
+          </div>
+          <div id="ds-score-panel-bar-track">
+            <div id="ds-score-panel-bar-fill"></div>
+          </div>
         </div>
         <div id="ds-panel-actions">
           <button class="ds-panel-btn" id="ds-panel-scan">⌖ Scan Page</button>
@@ -534,6 +540,27 @@
             <div class="ds-ctx-item">
               <div class="ds-ctx-label">After This</div>
               <div class="ds-ctx-val" id="ds-ctx-after">£500</div>
+            </div>
+          </div>
+
+          <!-- Shield Impact Section -->
+          <div id="ds-impact-section" style="display:none">
+            <div class="ds-impact-header"><span class="ds-impact-icon">🛡️</span> Shield Impact</div>
+            <div class="ds-impact-score-row">
+              <div class="ds-iss-item">
+                <div class="ds-iss-label">Current Score</div>
+                <div class="ds-iss-val" id="ds-si-current">--</div>
+              </div>
+              <div class="ds-iss-arrow">→</div>
+              <div class="ds-iss-item">
+                <div class="ds-iss-label">If Purchased</div>
+                <div class="ds-iss-val ds-iss-proj" id="ds-si-projected">--</div>
+              </div>
+              <div class="ds-iss-delta" id="ds-si-delta"></div>
+            </div>
+            <div id="ds-goals-section">
+              <div class="ds-goals-header">Goals Timeline</div>
+              <div id="ds-goals-list"></div>
             </div>
           </div>
 
@@ -1231,6 +1258,83 @@
     overlay.classList.add('ds-visible');
   }
 
+  // ── IMPACT ANALYSIS ──────────────────────────────────────────
+  function computeImpact(amount, profile) {
+    if (!profile || !amount) return null;
+    const mn = Math.max(profile.monthly_net || 0, 50);
+    const score = profile.score || 0;
+
+    // Approximate score delta: proportional to purchase vs monthly net
+    const risk_ratio = amount / mn;
+    const raw_delta  = -(risk_ratio * 4); // 1 month's surplus ≈ −4 pts
+    const score_delta = Math.max(-30, Math.min(-0.1, raw_delta));
+    const projected   = Math.max(0, Math.min(100, score + score_delta));
+
+    // Goals timeline impact
+    const goals_impact = (profile.goals || [])
+      .sort((a, b) => (a.priority || 99) - (b.priority || 99))
+      .slice(0, 3)
+      .map(g => {
+        const remaining     = Math.max(0, (g.target || 0) - (profile.savings || 0));
+        const base_months   = mn > 0 ? Math.max(1, Math.ceil(remaining / mn)) : null;
+        const delay_months  = mn > 0 ? Math.max(0, Math.ceil(amount / mn))    : null;
+        return { name: g.name, base_months, delay_months };
+      });
+
+    return { score, score_delta, projected_score: projected, goals_impact };
+  }
+
+  function renderImpactSection(amount, profile) {
+    const section = document.getElementById('ds-impact-section');
+    if (!section) return;
+
+    const impact = computeImpact(amount, profile);
+    if (!impact) { section.style.display = 'none'; return; }
+
+    section.style.display = 'block';
+
+    const cur  = document.getElementById('ds-si-current');
+    const proj = document.getElementById('ds-si-projected');
+    const delt = document.getElementById('ds-si-delta');
+
+    if (cur)  cur.textContent = impact.score.toFixed(1);
+    if (proj) {
+      proj.textContent = impact.projected_score.toFixed(1);
+      // Color the projected score based on severity
+      const drop = Math.abs(impact.score_delta);
+      proj.style.color = drop >= 10 ? '#e03131' : drop >= 5 ? '#e67700' : '#495057';
+    }
+    if (delt) {
+      const sign = impact.score_delta > 0 ? '+' : '';
+      delt.textContent = `${sign}${impact.score_delta.toFixed(1)} pts`;
+      delt.style.color = impact.score_delta < -8 ? '#e03131' : impact.score_delta < -3 ? '#e67700' : '#adb5bd';
+    }
+
+    const goalsList = document.getElementById('ds-goals-list');
+    if (goalsList) {
+      if (!impact.goals_impact.length) {
+        goalsList.innerHTML = '<div class="ds-goal-row ds-goal-empty">No goals set — add them in the dashboard.</div>';
+      } else {
+        goalsList.innerHTML = impact.goals_impact.map(g => {
+          if (g.base_months === null) {
+            return `<div class="ds-goal-row">
+              <span class="ds-goal-name">${g.name}</span>
+              <span class="ds-goal-time ds-goal-warn">No surplus to save</span>
+            </div>`;
+          }
+          const after = g.base_months + g.delay_months;
+          const sign  = g.delay_months > 0 ? `+${g.delay_months} mo` : '—';
+          const cls   = g.delay_months >= 3 ? 'ds-goal-bad' : g.delay_months >= 1 ? 'ds-goal-warn' : '';
+          return `<div class="ds-goal-row">
+            <span class="ds-goal-name">${g.name}</span>
+            <span class="ds-goal-time">${g.base_months} mo <span class="ds-goal-arrow">→</span> ${after} mo</span>
+            <span class="ds-goal-delay ${cls}">${sign}</span>
+          </div>`;
+        }).join('');
+      }
+    }
+  }
+
   function _showMainModal(amount, risk) {
     const overlay = document.getElementById('ds-modal-overlay');
     const picker = document.getElementById('ds-price-picker');
@@ -1261,6 +1365,9 @@
     afterEl.textContent = `${c}${afterThis.toFixed(0)}`;
     leftEl.className  = 'ds-ctx-val' + (left / budget < 0.2 ? ' ds-danger' : left / budget < 0.4 ? ' ds-warn' : '');
     afterEl.className = 'ds-ctx-val' + (afterThis <= 0 ? ' ds-danger' : afterThis < budget * 0.1 ? ' ds-warn' : '');
+
+    // Render shield impact section
+    renderImpactSection(amount, state.profile);
 
     document.querySelectorAll('.ds-tab').forEach((t,i) => t.classList.toggle('active', i===0));
     document.querySelectorAll('.ds-tab-pane').forEach((p,i) => p.classList.toggle('active', i===0));
@@ -1350,17 +1457,29 @@
       toggleBtn.classList.toggle('active', !settings.enabled);
     }
 
-    const activityList = document.getElementById('ds-activity-list');
-    if (activityList) {
-      const todayHistory = (history || []).filter(h => new Date(h.timestamp).toDateString() === new Date().toDateString()).slice(0, 5);
-      activityList.innerHTML = todayHistory.length === 0
-        ? '<div class="ds-activity-empty">No activity yet today</div>'
-        : todayHistory.map(h => `
-          <div class="ds-activity-item">
-            <div class="ds-activity-dot ${h.riskLevel}"></div>
-            <div class="ds-activity-domain">${h.domain}</div>
-            <div class="ds-activity-amt">${h.amount ? `${c}${h.amount.toFixed(0)}` : '?'}</div>
-          </div>`).join('');
+    // Score panel section
+    const scorePanelNum  = document.getElementById('ds-score-panel-num');
+    const scorePanelBand = document.getElementById('ds-score-panel-band');
+    const scorePanelFill = document.getElementById('ds-score-panel-bar-fill');
+    const profile = state.profile;
+
+    if (scorePanelNum) {
+      if (profile?.score != null) {
+        const s = profile.score;
+        scorePanelNum.textContent  = s.toFixed(1);
+        scorePanelBand.textContent = s >= 75 ? 'Good' : s >= 55 ? 'Fair' : s >= 40 ? 'Caution' : 'At Risk';
+        const clr = s >= 60 ? '#00e5a0' : s >= 40 ? '#ffd166' : '#ff4d6d';
+        scorePanelNum.style.color  = clr;
+        scorePanelBand.style.color = clr;
+        if (scorePanelFill) {
+          scorePanelFill.style.width = `${s}%`;
+          scorePanelFill.style.background = clr;
+        }
+      } else {
+        scorePanelNum.textContent  = '--';
+        scorePanelBand.textContent = 'Sync in popup';
+        if (scorePanelFill) scorePanelFill.style.width = '0%';
+      }
     }
   }
 
@@ -1370,9 +1489,10 @@
       const data = await safeSend({ type: 'GET_STATE' });
       if (!data) return;
       state.settings = data.settings;
-      state.session = data.session;
-      state.history = data.history;
-      state.streak = data.streak;
+      state.session  = data.session;
+      state.history  = data.history;
+      state.streak   = data.streak;
+      state.profile  = data.profile || null;
       refreshHUD();
     } catch (_) {}
   }
