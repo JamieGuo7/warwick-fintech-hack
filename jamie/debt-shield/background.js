@@ -8,6 +8,8 @@ const DEFAULTS = {
   warningThresholds: { critical: 200, high: 50, medium: 15 },
   currency: '£',
   streakGoalDays: 7,
+  userName: '',
+  apiBase: 'http://localhost:8000',
 };
 
 const STORAGE = {
@@ -15,6 +17,7 @@ const STORAGE = {
   HISTORY:  'ds_history',
   STATS:    'ds_stats',
   SESSION:  'ds_session',
+  PROFILE:  'ds_profile',
 };
 
 function todayKey() { return new Date().toDateString(); }
@@ -69,7 +72,7 @@ async function updateBadge() {
     chrome.action.setBadgeBackgroundColor({ color: '#444' });
   } else {
     chrome.action.setBadgeText({ text: 'ON' });
-    chrome.action.setBadgeBackgroundColor({ color: '#22aa55' });
+    chrome.action.setBadgeBackgroundColor({ color: '#00c47a' });
   }
 }
 
@@ -77,14 +80,15 @@ async function updateBadge() {
 async function buildFullState() {
   const session = await ensureSessionFresh();
   const raw = await chrome.storage.local.get([
-    STORAGE.SETTINGS, STORAGE.HISTORY, STORAGE.STATS,
+    STORAGE.SETTINGS, STORAGE.HISTORY, STORAGE.STATS, STORAGE.PROFILE,
   ]);
   const settings = raw[STORAGE.SETTINGS] || DEFAULTS;
   const stats    = raw[STORAGE.STATS]    || {};
   const history  = raw[STORAGE.HISTORY]  || [];
+  const profile  = raw[STORAGE.PROFILE]  || null;
   const cur      = stats.streakDays  || 0;
   const best     = Math.max(cur, stats.bestStreak || 0);
-  return { settings, session, history, streak: { current: cur, best } };
+  return { settings, session, history, streak: { current: cur, best }, profile };
 }
 
 // ── MESSAGE HANDLER ──────────────────────────────────────────
@@ -94,6 +98,68 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
       case 'GET_STATE': {
         sendResponse(await buildFullState());
+        break;
+      }
+
+      case 'GET_PROFILE': {
+        const raw = await chrome.storage.local.get(STORAGE.PROFILE);
+        sendResponse({ profile: raw[STORAGE.PROFILE] || null });
+        break;
+      }
+
+      case 'STORE_PROFILE': {
+        await chrome.storage.local.set({ [STORAGE.PROFILE]: msg.profile });
+        sendResponse({ ok: true });
+        break;
+      }
+
+      case 'SYNC_PROFILE': {
+        const settingsData = await chrome.storage.local.get(STORAGE.SETTINGS);
+        const settings = settingsData[STORAGE.SETTINGS] || DEFAULTS;
+        const userName = settings.userName || '';
+        const apiBase  = (settings.apiBase || 'http://localhost:8000').replace(/\/$/, '');
+
+        if (!userName) {
+          sendResponse({ ok: false, reason: 'no_user' });
+          break;
+        }
+
+        try {
+          const [userRes, scoreRes] = await Promise.all([
+            fetch(`${apiBase}/user/${encodeURIComponent(userName)}`),
+            fetch(`${apiBase}/score/${encodeURIComponent(userName)}`),
+          ]);
+
+          if (!userRes.ok || !scoreRes.ok) {
+            sendResponse({ ok: false, reason: 'api_error' });
+            break;
+          }
+
+          const userData  = await userRes.json();
+          const scoreData = await scoreRes.json();
+
+          const totalDebtPayments = (userData.debts || []).reduce((s, d) => s + (d.monthly_payment || 0), 0);
+          const monthly_net = Math.max(0, (userData.average_income || 0) - (userData.average_expenses || 0));
+
+          const profile = {
+            score:       scoreData.shield_score,
+            income:      userData.average_income   || 0,
+            expenses:    userData.average_expenses || 0,
+            monthly_net,
+            savings:     userData.current_savings  || 0,
+            goals:       (userData.savings_goals || []).map((g, i) => ({
+              name:     g.name,
+              target:   g.target_amount,
+              priority: g.priority ?? (i + 1),
+            })),
+            synced_at: Date.now(),
+          };
+
+          await chrome.storage.local.set({ [STORAGE.PROFILE]: profile });
+          sendResponse({ ok: true, profile });
+        } catch (e) {
+          sendResponse({ ok: false, reason: 'fetch_error', error: e.message });
+        }
         break;
       }
 
