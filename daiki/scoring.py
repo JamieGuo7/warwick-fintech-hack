@@ -141,7 +141,6 @@ def prob_default_12m(
 
     return float(defaulted.sum()) / N
 
-
 # ---------------------------------------------------------------------- #
 # Example usage
 # ---------------------------------------------------------------------- #
@@ -150,13 +149,27 @@ prob = prob_default_12m(
         mu_E    = 3_500,        # £3,500 average monthly expenses
         var_I   = 250_000,      # std dev ~£500
         var_E   = 160_000,      # std dev ~£400
-        d       = [10_000, 5_000],          # two debts
-        p       = [300,    150],            # monthly payments
+        d       = [10_000, 100_000],          # two debts
+        p       = [300,    200],            # monthly payments
         t       = [36,     math.inf],       # 3-year term loan + revolving
         r       = [0.005,  0.015],          # 0.5% and 1.5% monthly
-        B0      = 1_000,
+        B0      = 100,
         N       = 200_000,
-        rho_IE  = 0.2,
+        rho_IE  = 0
     )
+
+prob2 = prob_default_12m(
+    mu_I = 3_000,
+    mu_E = 2_000,
+    var_I = 2_500,
+    var_E = 1_600,
+    d = [10_000, 30_000, 100_000],
+    p = [100, 150, 800],
+    t = [100, 200, math.inf], 
+    r = [0.005, 0.0015, 0.03],
+    B0 = 1_000,
+    N = 200_000,
+    rho_IE = 0
+)
 
 print(prob)
