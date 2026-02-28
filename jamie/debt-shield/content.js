@@ -88,15 +88,13 @@
 
   function parsePrice(raw) {
     if (raw == null) return null;
-    // Handle pence-only values like "199p" -> ignore, and strip currency symbols
     const s = String(raw).replace(/[£$€]|USD|GBP|EUR/g, '').trim();
-    // Remove thousands separators (commas) but keep decimal point
     const normalised = s.replace(/,(\d{3})/g, '$1').replace(/[^0-9.]/g, '');
     const v = parseFloat(normalised);
     return (!isNaN(v) && v >= 0.5 && v < 50000) ? v : null;
   }
 
-  // Strategy 1: Known site CSS selectors
+  // ── SITE SELECTORS ───────────────────────────────────────────
   const SITE_SELECTORS = {
     'ebay.co.uk':          '.x-price-primary [class*="textspans"]:first-child, .x-price-approx__price',
     'ebay.com':            '.x-price-primary [class*="textspans"]:first-child',
@@ -133,72 +131,35 @@
     'wickes.co.uk':        '[class*="price__"]',
   };
 
-  function stratSiteSelector() {
-    const domain = window.location.hostname.replace(/^www\./, '');
-    const key = Object.keys(SITE_SELECTORS).find(k => domain === k || domain.endsWith('.' + k));
-    if (!key) return null;
-    for (const sel of SITE_SELECTORS[key].split(',').map(s => s.trim())) {
-      try {
-        const el = document.querySelector(sel);
-        if (el && !isInsideDS(el)) {
-          const v = parsePrice(el.getAttribute('content') || el.textContent || '');
-          if (v) return v;
-        }
-      } catch (_) {}
-    }
-    return null;
-  }
-
-  // Strategy 2: Window hydration blobs (React/Next/Vue)
-  function stratWindowBlobs() {
+  // ── GATHER ALL CANDIDATES WITH CONFIDENCE ────────────────────
+  // Returns array of { value, source, confidence: 1-3 }
+  function getAllPriceCandidates() {
     const candidates = [];
-    const PRICE_KEYS = /^(price|sale_?price|current_?price|selling_?price|offer_?price|unit_?price|final_?price|buy_?price|amount)$/i;
-    const seen = new WeakSet();
 
-    function dig(obj, depth) {
-      if (!obj || typeof obj !== 'object' || depth > 8) return;
-      if (obj.nodeType || typeof obj === 'function') return;
-      if (seen.has(obj)) return;
-      seen.add(obj);
-      try {
-        if (Array.isArray(obj)) { obj.slice(0, 20).forEach(v => dig(v, depth + 1)); return; }
-        for (const [k, v] of Object.entries(obj)) {
-          if (PRICE_KEYS.test(k) && (typeof v === 'number' || typeof v === 'string')) {
-            const p = parsePrice(v); if (p) candidates.push(p);
-          }
-          if (v && typeof v === 'object') dig(v, depth + 1);
-        }
-      } catch (_) {}
+    function add(value, source, confidence) {
+      const v = parsePrice(value);
+      if (v) candidates.push({ value: v, source, confidence });
     }
 
-    [window.__NEXT_DATA__, window.__INITIAL_STATE__, window.__PRELOADED_STATE__,
-     window.__APP_STATE__, window.__NUXT__, window.__remixContext,
-     window.pageData, window.utag_data, window.dataLayer?.[0]
-    ].forEach(b => { try { dig(b, 0); } catch (_) {} });
+    // Confidence 3: known site CSS — most reliable
+    const domain = window.location.hostname.replace(/^www\./, '');
+    const siteKey = Object.keys(SITE_SELECTORS).find(k => domain === k || domain.endsWith('.' + k));
+    if (siteKey) {
+      for (const sel of SITE_SELECTORS[siteKey].split(',').map(s => s.trim())) {
+        try {
+          const el = document.querySelector(sel);
+          if (el && !isInsideDS(el)) add(el.getAttribute('content') || el.textContent, `site CSS (${siteKey})`, 3);
+        } catch (_) {}
+      }
+    }
 
-    // Inline script regex scan — cap at 200kb
-    document.querySelectorAll('script:not([src]):not([type="application/ld+json"])').forEach(s => {
-      try {
-        const ms = [...s.textContent.slice(0, 200000).matchAll(/"(?:price|salePrice|currentPrice|sellingPrice|unitPrice)"\s*:\s*"?(\d+\.?\d*)"?/gi)];
-        ms.forEach(m => { const p = parsePrice(m[1]); if (p) candidates.push(p); });
-      } catch (_) {}
-    });
-
-    // Filter out suspiciously round large numbers that are likely budgets/limits not prices
-    const filtered = candidates.filter(v => !(Number.isInteger(v) && v >= 100 && v % 50 === 0));
-    return filtered.length ? Math.min(...filtered.filter(v => v === Math.max(...filtered) || filtered.indexOf(v) >= 0)) : (candidates.length ? Math.max(...candidates) : null);
-  }
-
-  // Strategy 3: JSON-LD structured data
-  function stratJsonLd() {
-    const vals = [];
+    // Confidence 3: JSON-LD structured data
     document.querySelectorAll('script[type="application/ld+json"]').forEach(script => {
       try {
         const dig = (obj) => {
           if (!obj || typeof obj !== 'object') return;
-          // Prefer lowPrice (sale) over price over highPrice
-          const p = obj.lowPrice ?? obj.price ?? obj.highPrice ?? obj.offers?.lowPrice ?? obj.offers?.price;
-          if (p != null) { const v = parsePrice(p); if (v) vals.push(v); }
+          const p = obj.lowPrice ?? obj.price ?? obj.offers?.lowPrice ?? obj.offers?.price;
+          if (p != null) add(p, 'structured data (JSON-LD)', 3);
           Object.values(obj).forEach(v => {
             if (Array.isArray(v)) v.forEach(dig);
             else if (v && typeof v === 'object') dig(v);
@@ -207,71 +168,43 @@
         dig(JSON.parse(script.textContent));
       } catch (_) {}
     });
-    // Return lowest found (sale price preferred over RRP)
-    return vals.length ? Math.min(...vals) : null;
-  }
 
-  // Strategy 4: Meta tags
-  function stratMeta() {
-    const vals = [];
+    // Confidence 3: meta price tags
     document.querySelectorAll('meta[property*="price"], meta[name*="price"]').forEach(m => {
-      const v = parsePrice(m.getAttribute('content')); if (v) vals.push(v);
+      add(m.getAttribute('content'), 'meta tag', 3);
     });
-    return vals.length ? Math.min(...vals) : null;
-  }
 
-  // Strategy 5: data-* and itemprop attributes
-  function stratDataAttrs() {
-    const vals = [];
-    document.querySelectorAll('[data-price],[data-buy-price],[data-final-price],[data-product-price],[data-sale-price],[data-price-value],[itemprop="price"]').forEach(el => {
+    // Confidence 3: data-price attributes
+    document.querySelectorAll('[data-price],[data-buy-price],[data-final-price],[data-product-price],[data-sale-price],[itemprop="price"]').forEach(el => {
       if (isInsideDS(el)) return;
       const raw = el.getAttribute('data-price') || el.getAttribute('data-buy-price') ||
                   el.getAttribute('data-final-price') || el.getAttribute('data-product-price') ||
-                  el.getAttribute('data-sale-price') || el.getAttribute('data-price-value') ||
-                  el.getAttribute('content') || el.textContent;
-      const v = parsePrice(raw); if (v) vals.push(v);
+                  el.getAttribute('data-sale-price') || el.getAttribute('content') || el.textContent;
+      add(raw, 'data attribute', 3);
     });
-    return vals.length ? Math.min(...vals) : null;
-  }
 
-  // Strategy 6: Generic CSS heuristics
-  function stratGenericSelectors() {
-    const sels = [
-      // Sale price first (most accurate for what user is paying)
+    // Confidence 2: generic CSS price selectors
+    const genericSels = [
       '[class*="sale-price"]:not([class*="was"])', '[class*="offer-price"]', '[class*="final-price"]',
       '[class*="current-price"]', '[class*="selling-price"]',
       '[class*="product-price"]:not([class*="was"]):not([class*="old"])', '[id*="product-price"]',
-      // WooCommerce
       '.price ins .woocommerce-Price-amount', '.woocommerce-Price-amount',
-      // Magento
       '[data-price-type="finalPrice"] .price', '.price-wrapper .price',
-      // Shopify
       '[class*="price__current"]', '.product__price',
-      // PrestaShop / OpenCart / BigCommerce
-      '.current-price-value', '#our_price_display', '#price-total', '[data-product-price]',
+      '.current-price-value', '#our_price_display',
     ];
-    for (const sel of sels) {
+    for (const sel of genericSels) {
       try {
         const el = document.querySelector(sel);
-        if (el && !isInsideDS(el)) {
-          const v = parsePrice(el.getAttribute('content') || el.textContent || '');
-          if (v) return v;
-        }
+        if (el && !isInsideDS(el)) add(el.getAttribute('content') || el.textContent, `CSS selector`, 2);
       } catch (_) {}
     }
-    return null;
-  }
 
-  // Strategy 7: Proximity-based text scan
-  // Looks for prices NEAR checkout buttons rather than scanning entire page
-  function stratProximity() {
-    const vals = [];
-    // Find checkout buttons first
+    // Confidence 2: proximity to checkout button
     document.querySelectorAll('button, input[type="submit"], [role="button"]').forEach(btn => {
       if (isInsideDS(btn)) return;
       const text = (btn.innerText || btn.textContent || btn.value || '').toLowerCase();
       if (!CHECKOUT_BTNS.some(p => p.test(text))) return;
-      // Search ancestors up to 4 levels for a price
       let el = btn;
       for (let i = 0; i < 4; i++) {
         el = el.parentElement;
@@ -280,61 +213,64 @@
         let m;
         while ((m = PRICE_REGEX.exec(el.textContent)) !== null) {
           const v = parsePrice((m[1] || m[2] || '').replace(/[,\s]/g, ''));
-          if (v) vals.push(v);
+          if (v) candidates.push({ value: v, source: 'near checkout button', confidence: 2 });
         }
       }
     });
-    return vals.length ? Math.min(...vals) : null;
+
+    // Confidence 1: window data blobs
+    const PRICE_KEYS = /^(price|sale_?price|current_?price|selling_?price|offer_?price|unit_?price|final_?price|buy_?price|amount)$/i;
+    const seen = new WeakSet();
+    function digBlob(obj, depth) {
+      if (!obj || typeof obj !== 'object' || depth > 8) return;
+      if (obj.nodeType || typeof obj === 'function') return;
+      if (seen.has(obj)) return;
+      seen.add(obj);
+      try {
+        if (Array.isArray(obj)) { obj.slice(0, 20).forEach(v => digBlob(v, depth + 1)); return; }
+        for (const [k, v] of Object.entries(obj)) {
+          if (PRICE_KEYS.test(k) && (typeof v === 'number' || typeof v === 'string')) add(v, 'window data blob', 1);
+          if (v && typeof v === 'object') digBlob(v, depth + 1);
+        }
+      } catch (_) {}
+    }
+    [window.__NEXT_DATA__, window.__INITIAL_STATE__, window.__PRELOADED_STATE__,
+     window.__APP_STATE__, window.__NUXT__, window.pageData, window.utag_data
+    ].forEach(b => { try { digBlob(b, 0); } catch (_) {} });
+
+    return candidates;
   }
 
-  // Strategy 8: Text scan last resort
-  function stratTextScan() {
-    const vals = [];
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
-      acceptNode: (n) => {
-        if (isInsideDS(n.parentElement)) return NodeFilter.FILTER_REJECT;
-        if (n.parentElement?.offsetParent === null) return NodeFilter.FILTER_REJECT;
-        // Skip nav, header, footer — likely to have irrelevant prices
-        const tag = n.parentElement?.closest('nav, header, footer, [role="navigation"]');
-        if (tag) return NodeFilter.FILTER_REJECT;
-        return NodeFilter.FILTER_ACCEPT;
-      }
-    });
-    let node;
-    while ((node = walker.nextNode())) {
-      PRICE_REGEX.lastIndex = 0;
-      let m;
-      while ((m = PRICE_REGEX.exec(node.textContent)) !== null) {
-        const v = parsePrice((m[1] || m[2] || '').replace(/[,\s]/g, ''));
-        if (v) vals.push(v);
-      }
-    }
-    // Return the most common price (mode) — avoids picking up nav/banner noise
-    if (!vals.length) return null;
+  // ── PICK BEST CANDIDATES FOR DISPLAY ────────────────────────
+  // Returns top 3 deduplicated candidates, sorted by confidence then frequency
+  function getTopCandidates() {
+    const all = getAllPriceCandidates();
+    if (!all.length) return [];
+
+    // Score: confidence * 10 + frequency
     const freq = {};
-    vals.forEach(v => freq[v] = (freq[v] || 0) + 1);
-    return parseFloat(Object.entries(freq).sort((a,b) => b[1]-a[1])[0][0]);
+    const bestConf = {};
+    const bestSource = {};
+    all.forEach(({ value, source, confidence }) => {
+      const k = value.toFixed(2);
+      freq[k] = (freq[k] || 0) + 1;
+      if (!bestConf[k] || confidence > bestConf[k]) { bestConf[k] = confidence; bestSource[k] = source; }
+    });
+
+    return Object.entries(freq)
+      .map(([k, f]) => ({ value: parseFloat(k), source: bestSource[k], confidence: bestConf[k], score: bestConf[k] * 10 + f }))
+      .filter(c => {
+        // Filter out clearly wrong values: shipping costs (under £2), suspiciously round non-product numbers
+        if (c.value < 1) return false;
+        return true;
+      })
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 4); // top 4 options to show user
   }
 
   function getBestPrice() {
-    const strategies = [
-      ['site-selector',   stratSiteSelector],
-      ['json-ld',         stratJsonLd],
-      ['meta',            stratMeta],
-      ['data-attrs',      stratDataAttrs],
-      ['generic-css',     stratGenericSelectors],
-      ['proximity',       stratProximity],
-      ['window-blobs',    stratWindowBlobs],
-      ['text-scan',       stratTextScan],
-    ];
-    for (const [name, fn] of strategies) {
-      try {
-        const result = fn();
-        if (result) { console.log(`[DebtShield] Price via "${name}":`, result); return result; }
-      } catch (e) { console.warn(`[DebtShield] "${name}" failed:`, e.message); }
-    }
-    console.log('[DebtShield] No price found');
-    return null;
+    const top = getTopCandidates();
+    return top.length ? top[0].value : null;
   }
 
   function getDomain() { return window.location.hostname.replace(/^www\./, ''); }
@@ -434,10 +370,8 @@
         };
       }
 
-      const amount = getBestPrice();
-      const risk = getRisk(amount, state.settings);
-      safeSend({ type: 'LOG_INTERCEPT', data: { amount, riskLevel: risk, domain: getDomain(), pageTitle: document.title } });
-      showModal(amount, risk);
+      safeSend({ type: 'LOG_INTERCEPT', data: { amount: null, riskLevel: 'unknown', domain: getDomain(), pageTitle: document.title } });
+      showModal();
     }, true);
   }
 
@@ -478,12 +412,8 @@
             input.__dsCardWatched = true;
             input.addEventListener('focus', () => {
               if (state.modalVisible || !state.settings?.enabled) return;
-              const amount = getBestPrice();
-              const risk = getRisk(amount, state.settings);
-              if (risk !== 'low') {
-                safeSend({ type: 'LOG_INTERCEPT', data: { amount, riskLevel: risk, domain: getDomain(), pageTitle: document.title } });
-                showModal(amount, risk);
-              }
+              safeSend({ type: 'LOG_INTERCEPT', data: { amount: null, riskLevel: 'unknown', domain: getDomain(), pageTitle: document.title } });
+              showModal();
             }, { once: true });
           }
         } catch (_) {}
@@ -559,6 +489,25 @@
     modalOverlay.id = 'ds-modal-overlay';
     modalOverlay.innerHTML = `
       <div id="ds-backdrop"></div>
+
+      <!-- ── PRICE PICKER (shown first when confidence is low) ── -->
+      <div id="ds-price-picker" style="display:none">
+        <div id="ds-price-picker-top">
+          <div id="ds-price-picker-icon">🛡️</div>
+          <div id="ds-price-picker-title">Hold on — what's the price?</div>
+          <div id="ds-price-picker-sub">We detected some prices on this page. Tap the right one, or enter it manually.</div>
+        </div>
+        <div id="ds-price-candidates"></div>
+        <div id="ds-price-manual">
+          <div id="ds-price-manual-label">Or type it in</div>
+          <div id="ds-price-manual-row">
+            <input id="ds-price-manual-input" type="number" min="0" step="0.01" placeholder="0.00" />
+            <button id="ds-price-manual-confirm">Confirm →</button>
+          </div>
+        </div>
+        <button id="ds-price-skip">Skip — no price to track</button>
+      </div>
+
       <div id="ds-modal">
         <div id="ds-modal-topbar">
           <div id="ds-modal-brand">
@@ -1211,14 +1160,86 @@
     }
   }
 
-  function showModal(amount, risk) {
+  function showModal() {
     if (state.modalVisible) return;
     state.modalVisible = true;
-    state._shownForUrl = location.href; // mark this page state as seen
+    state._shownForUrl = location.href;
+
+    const candidates = getTopCandidates();
+    const topCandidate = candidates[0];
+    const highConfidence = topCandidate && topCandidate.confidence >= 3 && candidates.filter(c => c.confidence >= 3).length === 1;
+
+    // If we have a single high-confidence price, skip straight to main modal
+    if (highConfidence) {
+      _showMainModal(topCandidate.value, getRisk(topCandidate.value, state.settings));
+    } else {
+      // Show price picker first
+      _showPricePicker(candidates);
+    }
+  }
+
+  function _showPricePicker(candidates) {
+    const overlay = document.getElementById('ds-modal-overlay');
+    const picker = document.getElementById('ds-price-picker');
+    const mainModal = document.getElementById('ds-modal');
+    picker.style.display = 'block';
+    mainModal.style.display = 'none';
+    overlay.setAttribute('data-risk', 'medium');
+
+    const c = state.settings?.currency || '£';
+    const list = document.getElementById('ds-price-candidates');
+    list.innerHTML = '';
+
+    if (candidates.length) {
+      candidates.forEach(({ value, source, confidence }) => {
+        const btn = document.createElement('button');
+        btn.className = 'ds-price-candidate-btn';
+        const stars = confidence >= 3 ? '●●●' : confidence === 2 ? '●●○' : '●○○';
+        const starClass = confidence >= 3 ? 'high' : confidence === 2 ? 'med' : 'low';
+        btn.innerHTML = `
+          <span class="ds-candidate-value">${c}${value.toFixed(2)}</span>
+          <span class="ds-candidate-source">${source}</span>
+          <span class="ds-candidate-conf ds-conf-${starClass}">${stars}</span>`;
+        btn.addEventListener('click', () => {
+          _showMainModal(value, getRisk(value, state.settings));
+        });
+        list.appendChild(btn);
+      });
+    } else {
+      list.innerHTML = '<div class="ds-no-candidates">No prices detected on this page</div>';
+    }
+
+    // Manual entry
+    const input = document.getElementById('ds-price-manual-input');
+    const confirmBtn = document.getElementById('ds-price-manual-confirm');
+    input.value = '';
+    input.placeholder = `Enter price (e.g. 49.99)`;
+
+    confirmBtn.onclick = () => {
+      const raw = input.value.replace(/[£$€,]/g, '').trim();
+      const val = parseFloat(raw);
+      if (isNaN(val) || val <= 0) { input.classList.add('ds-input-error'); setTimeout(() => input.classList.remove('ds-input-error'), 600); return; }
+      _showMainModal(val, getRisk(val, state.settings));
+    };
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirmBtn.click(); });
+
+    document.getElementById('ds-price-skip').addEventListener('click', () => {
+      // No price — just show modal with null
+      _showMainModal(null, 'low');
+    }, { once: true });
+
+    overlay.classList.add('ds-visible');
+  }
+
+  function _showMainModal(amount, risk) {
+    const overlay = document.getElementById('ds-modal-overlay');
+    const picker = document.getElementById('ds-price-picker');
+    const mainModal = document.getElementById('ds-modal');
+    picker.style.display = 'none';
+    mainModal.style.display = 'block';
+
     state.currentAmount = amount;
     state.currentRisk = risk;
-
-    const overlay = document.getElementById('ds-modal-overlay');
     overlay.setAttribute('data-risk', risk);
 
     const c = state.settings?.currency || '£';
@@ -1229,7 +1250,7 @@
 
     overlay.querySelector('#ds-modal-risk-badge').textContent = getRiskLabel(risk);
     overlay.querySelector('#ds-modal-risk-badge').className = `ds-risk-${risk}`;
-    overlay.querySelector('#ds-modal-amount').textContent = amount ? `${c}${amount.toFixed(2)}` : 'Unknown';
+    overlay.querySelector('#ds-modal-amount').textContent = amount ? `${c}${amount.toFixed(2)}` : 'Unknown amount';
     overlay.querySelector('#ds-modal-site').textContent = getDomain();
     overlay.querySelector('#ds-modal-message').textContent = getRiskMsg(amount, risk);
 
@@ -1241,16 +1262,11 @@
     leftEl.className  = 'ds-ctx-val' + (left / budget < 0.2 ? ' ds-danger' : left / budget < 0.4 ? ' ds-warn' : '');
     afterEl.className = 'ds-ctx-val' + (afterThis <= 0 ? ' ds-danger' : afterThis < budget * 0.1 ? ' ds-warn' : '');
 
-    // Reset tabs to reflect
     document.querySelectorAll('.ds-tab').forEach((t,i) => t.classList.toggle('active', i===0));
     document.querySelectorAll('.ds-tab-pane').forEach((p,i) => p.classList.toggle('active', i===0));
-
-    // Reset game
     stopGame();
     document.getElementById('ds-game-intro').style.display = '';
     document.querySelectorAll('.ds-game-screen').forEach(s => s.classList.remove('active'));
-
-    // Reset reflect
     resetReflect();
     overlay.querySelectorAll('.ds-answer-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1370,11 +1386,8 @@
       pulse.classList.remove('active'); void pulse.offsetWidth; pulse.classList.add('active');
       setTimeout(() => { pulse.classList.remove('active'); state.scanInProgress = false; }, 900);
     }
-    const amount = getBestPrice();
-    if (!amount) { showToast('No prices detected on this page'); return; }
-    const risk = getRisk(amount, state.settings);
-    safeSend({ type: 'LOG_INTERCEPT', data: { amount, riskLevel: risk, domain: getDomain(), pageTitle: document.title } });
-    showModal(amount, risk);
+    safeSend({ type: 'LOG_INTERCEPT', data: { amount: null, riskLevel: 'unknown', domain: getDomain(), pageTitle: document.title } });
+    showModal();
     closePanel();
   }
 
@@ -1449,10 +1462,8 @@
     if (CHECKOUT_BTNS.some(p => p.test(getButtonText(submitBtn)))) {
       e.preventDefault();
       e.stopImmediatePropagation();
-      const amount = getBestPrice();
-      const risk = getRisk(amount, state.settings);
-      safeSend({ type: 'LOG_INTERCEPT', data: { amount, riskLevel: risk, domain: getDomain(), pageTitle: document.title } });
-      showModal(amount, risk);
+      safeSend({ type: 'LOG_INTERCEPT', data: { amount: null, riskLevel: 'unknown', domain: getDomain(), pageTitle: document.title } });
+      showModal();
     }
   }, true);
 

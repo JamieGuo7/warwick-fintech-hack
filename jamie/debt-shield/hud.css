@@ -378,6 +378,180 @@
 .ds-panel-btn:hover { background: rgba(255,255,255,0.1); color: var(--ds-text); }
 .ds-panel-btn.active { background: rgba(255,30,30,0.1); color: var(--ds-red); border-color: rgba(255,30,30,0.2); }
 
+/* ── PRICE PICKER ────────────────────────────────────────────── */
+#ds-price-picker {
+  position: relative;
+  width: min(440px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 32px;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05);
+  padding: 28px 26px 24px;
+  transform: scale(0.93) translateY(24px);
+  transition: transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1);
+}
+#ds-modal-overlay.ds-visible #ds-price-picker {
+  transform: scale(1) translateY(0);
+}
+
+#ds-price-picker-top {
+  text-align: center;
+  margin-bottom: 20px;
+}
+#ds-price-picker-icon {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+#ds-price-picker-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: #212529;
+  margin-bottom: 6px;
+}
+#ds-price-picker-sub {
+  font-size: 13px;
+  color: #868e96;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+#ds-price-candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.ds-price-candidate-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 2px solid #e9ecef;
+  background: #f8f9fa;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s;
+  font-family: 'Nunito', sans-serif;
+  width: 100%;
+}
+.ds-price-candidate-btn:hover {
+  border-color: #339af0;
+  background: #e7f5ff;
+  transform: translateX(4px);
+}
+.ds-price-candidate-btn:first-child {
+  border-color: #b2f2bb;
+  background: #f0fff4;
+}
+.ds-price-candidate-btn:first-child:hover {
+  border-color: #69db7c;
+  background: #ebfbee;
+}
+
+.ds-candidate-value {
+  font-size: 22px;
+  font-weight: 900;
+  color: #212529;
+  flex-shrink: 0;
+  min-width: 80px;
+}
+.ds-candidate-source {
+  font-size: 11px;
+  font-weight: 700;
+  color: #868e96;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  flex: 1;
+}
+.ds-candidate-conf {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  flex-shrink: 0;
+}
+.ds-conf-high { color: #2f9e44; }
+.ds-conf-med  { color: #e67700; }
+.ds-conf-low  { color: #adb5bd; }
+
+.ds-no-candidates {
+  text-align: center;
+  padding: 18px;
+  font-size: 13px;
+  color: #adb5bd;
+  font-weight: 600;
+}
+
+#ds-price-manual {
+  margin-bottom: 14px;
+}
+#ds-price-manual-label {
+  font-size: 11px;
+  font-weight: 800;
+  color: #adb5bd;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 8px;
+}
+#ds-price-manual-row {
+  display: flex;
+  gap: 8px;
+}
+#ds-price-manual-input {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid #e9ecef;
+  font-size: 16px;
+  font-weight: 700;
+  color: #212529;
+  font-family: 'Nunito', sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+  -moz-appearance: textfield;
+}
+#ds-price-manual-input::-webkit-outer-spin-button,
+#ds-price-manual-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+#ds-price-manual-input:focus { border-color: #339af0; }
+#ds-price-manual-input.ds-input-error {
+  border-color: #ff6b6b;
+  animation: ds-shake 0.3s ease;
+}
+#ds-price-manual-confirm {
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: none;
+  background: #339af0;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+#ds-price-manual-confirm:hover {
+  background: #1971c2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(51,154,240,0.3);
+}
+
+#ds-price-skip {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: #adb5bd;
+  cursor: pointer;
+  font-family: 'Nunito', sans-serif;
+  transition: color 0.15s;
+  text-align: center;
+}
+#ds-price-skip:hover { color: #868e96; }
+
 /* ── MODAL OVERLAY ──────────────────────────────────────────── */
 #ds-modal-overlay {
   position: fixed;
