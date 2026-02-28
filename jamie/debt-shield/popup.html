@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Debt Shield</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #09090b;
+  --surface: #111113;
+  --border: rgba(255,255,255,0.07);
+  --text: rgba(255,255,255,0.88);
+  --muted: rgba(255,255,255,0.3);
+  --dim: rgba(255,255,255,0.07);
+  --red: #ff3333;
+  --orange: #ff8800;
+  --yellow: #ffc800;
+  --green: #22cc66;
+  --font-d: 'Bebas Neue', sans-serif;
+  --font-m: 'DM Mono', monospace;
+  --font-b: 'DM Sans', system-ui, sans-serif;
+}
+
+body {
+  width: 380px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-b);
+  overflow: hidden;
+  max-height: 600px;
+}
+
+/* ── TAB NAV ── */
+#tab-nav {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 10px 6px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-family: var(--font-m);
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-btn.active {
+  color: var(--text);
+  border-bottom-color: rgba(255,255,255,0.4);
+}
+
+/* ── HEADER ── */
+#header {
+  padding: 18px 20px 14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+#shield-wrap {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#shield-glow {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34,204,102,0.2), transparent 70%);
+  animation: shield-breathe 3s ease-in-out infinite;
+}
+
+#shield-glow.danger { background: radial-gradient(circle, rgba(255,51,51,0.25), transparent 70%); }
+#shield-glow.off { display: none; }
+
+@keyframes shield-breathe {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+
+#shield-emoji { font-size: 30px; position: relative; z-index: 1; }
+
+#header-text {}
+#brand-name { font-family: var(--font-d); font-size: 24px; letter-spacing: 4px; color: #fff; line-height: 1; }
+#brand-status { font-size: 10px; color: var(--muted); font-family: var(--font-m); letter-spacing: 1px; margin-top: 2px; }
+#brand-status.on { color: var(--green); }
+#brand-status.snoozed { color: var(--yellow); }
+#brand-status.off { color: #555; }
+
+#header-toggle {
+  margin-left: auto;
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  background: #1a1a1d;
+  border: 1px solid var(--border);
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.3s, border 0.3s;
+}
+
+#header-toggle.on {
+  background: rgba(34,204,102,0.2);
+  border-color: rgba(34,204,102,0.3);
+}
+
+#toggle-knob {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: #444;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s;
+}
+
+#header-toggle.on #toggle-knob {
+  transform: translateX(20px);
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+}
+
+/* ── TAB PANES ── */
+.tab-pane { display: none; overflow-y: auto; max-height: 520px; }
+.tab-pane.active { display: block; }
+
+/* ── OVERVIEW TAB ── */
+/* Budget hero */
+#budget-hero {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+#budget-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    -55deg,
+    transparent,
+    transparent 8px,
+    rgba(255,255,255,0.012) 8px,
+    rgba(255,255,255,0.012) 9px
+  );
+  pointer-events: none;
+}
+
+#budget-month { font-family: var(--font-m); font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+
+#budget-display {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+#budget-spent-big { font-family: var(--font-d); font-size: 52px; letter-spacing: 2px; color: #fff; line-height: 1; }
+#budget-divider { font-family: var(--font-m); font-size: 18px; color: var(--muted); }
+#budget-total-big { font-family: var(--font-d); font-size: 28px; letter-spacing: 1px; color: var(--muted); }
+
+#budget-bar {
+  height: 6px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+#budget-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--green);
+  width: 0%;
+  transition: width 0.7s cubic-bezier(0.25, 1, 0.5, 1), background 0.4s;
+}
+
+#budget-fill.warn { background: var(--yellow); }
+#budget-fill.danger { background: var(--orange); }
+#budget-fill.critical { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+#budget-meta {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-m);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+/* Stats */
+#stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+
+.stat-cell {
+  padding: 14px 16px;
+  border-right: 1px solid var(--border);
+}
+.stat-cell:last-child { border-right: none; }
+
+.stat-num {
+  font-family: var(--font-d);
+  font-size: 28px;
+  letter-spacing: 1px;
+  color: #fff;
+  line-height: 1;
+  margin-bottom: 3px;
+}
+
+.stat-lbl {
+  font-family: var(--font-m);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* Streak */
+#streak-row {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+#streak-emoji { font-size: 28px; }
+#streak-label { font-family: var(--font-m); font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 2px; }
+#streak-num { font-family: var(--font-d); font-size: 30px; letter-spacing: 1px; color: #fff; line-height: 1; }
+#streak-dots { display: flex; gap: 4px; margin-left: auto; }
+
+.sdot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--dim);
+  border: 1px solid var(--border);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.sdot.lit {
+  background: var(--yellow);
+  box-shadow: 0 0 5px var(--yellow);
+  border-color: transparent;
+}
+
+/* Quick actions */
+#quick-actions {
+  padding: 14px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.q-btn {
+  padding: 11px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--dim);
+  color: var(--muted);
+  font-family: var(--font-m);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.q-btn:hover { background: rgba(255,255,255,0.1); color: var(--text); }
+.q-btn.danger-btn { background: rgba(255,30,30,0.08); color: rgba(255,100,100,0.7); border-color: rgba(255,30,30,0.15); }
+.q-btn.danger-btn:hover { background: rgba(255,30,30,0.15); }
+
+/* ── SETTINGS TAB ── */
+#settings-pane { padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+
+.setting-group { }
+.setting-label { font-family: var(--font-m); font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+
+.setting-name { font-size: 13px; color: var(--text); }
+.setting-hint { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+.setting-val {
+  font-family: var(--font-d);
+  font-size: 20px;
+  letter-spacing: 1px;
+  color: var(--text);
+}
+
+input[type="range"] {
+  width: 100%;
+  -webkit-appearance: none;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px;
+  outline: none;
+  margin-top: 8px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  cursor: pointer;
+}
+
+.threshold-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.threshold-chip {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 10px;
+}
+
+.tc-label { font-family: var(--font-m); font-size: 8px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
+.tc-val { font-family: var(--font-d); font-size: 18px; letter-spacing: 1px; color: var(--text); }
+
+/* ── HISTORY TAB ── */
+#history-pane { padding: 14px 20px; }
+
+#history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+#history-title { font-family: var(--font-m); font-size: 9px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+#clear-history-btn {
+  font-size: 10px; color: rgba(255,80,80,0.5); background: none; border: none;
+  cursor: pointer; font-family: var(--font-m); letter-spacing: 1px;
+}
+#clear-history-btn:hover { color: var(--red); }
+
+#history-list { display: flex; flex-direction: column; gap: 5px; }
+
+.h-item {
+  padding: 10px 12px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.h-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.h-dot.critical { background: var(--red); }
+.h-dot.high { background: var(--orange); }
+.h-dot.medium { background: var(--yellow); }
+.h-dot.low { background: var(--green); }
+
+.h-info { flex: 1; overflow: hidden; }
+.h-domain { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.h-time { font-family: var(--font-m); font-size: 9px; color: var(--muted); margin-top: 1px; }
+
+.h-amount { font-family: var(--font-d); font-size: 18px; letter-spacing: 1px; color: var(--text); flex-shrink: 0; }
+.h-action { font-family: var(--font-m); font-size: 9px; letter-spacing: 1px; flex-shrink: 0; text-transform: uppercase; }
+.h-action.intercepted { color: var(--yellow); }
+.h-action.purchased { color: var(--red); }
+
+.h-empty { text-align: center; padding: 30px; font-family: var(--font-m); font-size: 11px; color: rgba(255,255,255,0.15); }
+
+/* Footer */
+#footer {
+  padding: 10px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--border);
+  background: rgba(255,255,255,0.01);
+}
+
+#footer-text { font-family: var(--font-m); font-size: 9px; color: rgba(255,255,255,0.12); letter-spacing: 1px; }
+#version-tag { font-family: var(--font-m); font-size: 9px; color: rgba(255,255,255,0.1); }
+
+/* ── DUCK GAME ── */
+#duck-game-area { padding: 20px; text-align: center; }
+
+#duck-intro { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0; }
+#duck-intro-emoji { font-size: 48px; animation: duck-bob 2s ease-in-out infinite; }
+#duck-intro-title { font-family: var(--font-d); font-size: 24px; letter-spacing: 2px; color: #fff; }
+#duck-intro-sub { font-family: var(--font-m); font-size: 11px; color: var(--muted); line-height: 1.5; max-width: 240px; }
+
+@keyframes duck-bob {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-8px) rotate(3deg); }
+}
+
+#duck-scene {
+  position: relative;
+  width: 160px;
+  height: 160px;
+  margin: 0 auto 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#duck-water-ring {
+  position: absolute;
+  inset: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(100,180,255,0.12), rgba(100,180,255,0.04));
+  border: 1px solid rgba(100,180,255,0.15);
+  animation: water-ripple 3s ease-in-out infinite;
+}
+
+@keyframes water-ripple {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+
+#duck-body {
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle at 40% 35%, #ffe066, #ffd43b, #f59f00);
+  border-radius: 50% 50% 45% 45%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(255,212,59,0.3), inset 0 -4px 8px rgba(0,0,0,0.1);
+  transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.1s;
+  user-select: none;
+  position: relative;
+  z-index: 2;
+}
+
+#duck-body:hover {
+  box-shadow: 0 12px 32px rgba(255,212,59,0.45), inset 0 -4px 8px rgba(0,0,0,0.1);
+}
+
+#duck-body.squeezing {
+  transform: scale(0.82) rotate(-5deg);
+  box-shadow: 0 4px 12px rgba(255,212,59,0.2), inset 0 -4px 8px rgba(0,0,0,0.15);
+}
+
+#duck-body.bounce {
+  animation: duck-squeeze-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes duck-squeeze-bounce {
+  0% { transform: scale(0.82) rotate(-5deg); }
+  60% { transform: scale(1.15) rotate(5deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+#duck-emoji-wrap {
+  font-size: 48px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+#duck-squeaks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.squeak-particle {
+  position: absolute;
+  font-size: 14px;
+  font-family: var(--font-m);
+  font-weight: 500;
+  color: var(--yellow);
+  pointer-events: none;
+  animation: squeak-fly 0.8s ease-out forwards;
+  white-space: nowrap;
+}
+
+@keyframes squeak-fly {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(0.6); }
+}
+
+#duck-wisdom-box {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#duck-wisdom-text {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+  text-align: center;
+  font-family: var(--font-b);
+  transition: opacity 0.3s;
+}
+
+#duck-squeak-count-row {
+  font-family: var(--font-d);
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: var(--yellow);
+}
+
+#duck-squeak-count {
+  font-size: 32px;
+}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="shield-wrap">
+    <div id="shield-glow"></div>
+    <div id="shield-emoji">🛡️</div>
+  </div>
+  <div id="header-text">
+    <div id="brand-name">DEBT SHIELD</div>
+    <div id="brand-status" class="on">● PROTECTION ACTIVE</div>
+  </div>
+  <div id="header-toggle" class="on">
+    <div id="toggle-knob"></div>
+  </div>
+</div>
+
+<div id="tab-nav">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  <button class="tab-btn" data-tab="settings">Settings</button>
+  <button class="tab-btn" data-tab="history">History</button>
+  <button class="tab-btn" data-tab="duck">🦆 Destress</button>
+</div>
+
+<!-- OVERVIEW -->
+<div class="tab-pane active" id="tab-overview">
+
+  <div id="budget-hero">
+    <div id="budget-month"></div>
+    <div id="budget-display">
+      <div id="budget-spent-big">£0</div>
+      <div id="budget-divider">/</div>
+      <div id="budget-total-big">£500</div>
+    </div>
+    <div id="budget-bar"><div id="budget-fill"></div></div>
+    <div id="budget-meta">
+      <span id="budget-pct-label">0% used</span>
+      <span id="budget-left-label">£500 remaining</span>
+    </div>
+  </div>
+
+  <div id="stats-grid">
+    <div class="stat-cell">
+      <div class="stat-num" id="s-intercepted">0</div>
+      <div class="stat-lbl">Caught today</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num" id="s-proceeded">0</div>
+      <div class="stat-lbl">Proceeded</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num" id="s-session">£0</div>
+      <div class="stat-lbl">Spent today</div>
+    </div>
+  </div>
+
+  <div id="streak-row">
+    <div id="streak-emoji">🔥</div>
+    <div>
+      <div id="streak-label">Safe Day Streak</div>
+      <div id="streak-num">0</div>
+    </div>
+    <div id="streak-dots"></div>
+  </div>
+
+  <div id="quick-actions">
+    <button class="q-btn" id="q-scan">⌖ Scan Page</button>
+    <button class="q-btn" id="q-duck">🦆 Destress</button>
+    <button class="q-btn" id="q-hud">🖥 Toggle HUD</button>
+    <button class="q-btn danger-btn" id="q-reset">↺ Reset Today</button>
+  </div>
+
+</div>
+
+<!-- SETTINGS -->
+<div class="tab-pane" id="tab-settings">
+  <div id="settings-pane">
+
+    <div class="setting-group">
+      <div class="setting-label">Monthly Budget</div>
+      <div class="setting-row">
+        <div>
+          <div class="setting-name">Spending limit</div>
+          <div class="setting-hint">Alerts ramp up as you approach this</div>
+        </div>
+        <div class="setting-val" id="budget-val-display">£500</div>
+      </div>
+      <input type="range" id="budget-slider" min="50" max="5000" step="50" value="500">
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-label">Risk Thresholds</div>
+      <div class="threshold-grid">
+        <div class="threshold-chip">
+          <div class="tc-label">🚨 Critical</div>
+          <div class="tc-val" id="tc-critical">£200</div>
+        </div>
+        <div class="threshold-chip">
+          <div class="tc-label">⚠️ High</div>
+          <div class="tc-val" id="tc-high">£50</div>
+        </div>
+        <div class="threshold-chip">
+          <div class="tc-label">🔶 Medium</div>
+          <div class="tc-val" id="tc-medium">£15</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="setting-group">
+      <div class="setting-label">Currency</div>
+      <div style="display:flex;gap:6px;">
+        <button class="q-btn currency-btn" data-c="£">£ GBP</button>
+        <button class="q-btn currency-btn" data-c="$">$ USD</button>
+        <button class="q-btn currency-btn" data-c="€">€ EUR</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- HISTORY -->
+<div class="tab-pane" id="tab-history">
+  <div id="history-pane">
+    <div id="history-header">
+      <div id="history-title">Transaction Log</div>
+      <button id="clear-history-btn">Clear all</button>
+    </div>
+    <div id="history-list">
+      <div class="h-empty">No history yet</div>
+    </div>
+  </div>
+</div>
+
+<!-- DUCK DESTRESS GAME -->
+<div class="tab-pane" id="tab-duck">
+  <div id="duck-game-area">
+    <div id="duck-intro">
+      <div id="duck-intro-emoji">🦆</div>
+      <div id="duck-intro-title">Rubber Duck Therapy</div>
+      <div id="duck-intro-sub">Squeeze the duck. Tell it your problems. It gets it.</div>
+      <button id="duck-start-btn" class="q-btn" style="margin: 0 auto; justify-content: center;">Start squeezing</button>
+    </div>
+    <div id="duck-active" style="display:none;">
+      <div id="duck-scene">
+        <div id="duck-water-ring"></div>
+        <div id="duck-body">
+          <div id="duck-emoji-wrap">🦆</div>
+        </div>
+        <div id="duck-squeaks"></div>
+      </div>
+      <div id="duck-wisdom-box">
+        <div id="duck-wisdom-text">Go on then, give it a squeeze...</div>
+      </div>
+      <div id="duck-squeak-count-row">
+        <span id="duck-squeak-count">0</span> squeaks
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="footer">
+  <div id="footer-text">🛡️ DEBT SHIELD — Always watching</div>
+  <div id="version-tag">v2.0</div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
