@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Debt Shield</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:         #090e1a;
+  --surface:    #111827;
+  --surface2:   #1a2540;
+  --border:     #1e2d4a;
+  --green:      #00e5a0;
+  --green-dim:  #00e5a015;
+  --green-mid:  #00e5a050;
+  --text:       #e8edf5;
+  --muted:      #6b7a99;
+  --red:        #ff4d6d;
+  --red-dim:    #ff4d6d15;
+  --yellow:     #ffd166;
+  --yellow-dim: #ffd16615;
+  --font-m:     'DM Mono', monospace;
+  --font-b:     'Syne', sans-serif;
+}
+
+body {
+  width: 380px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-b);
+  overflow: hidden;
+  max-height: 600px;
+}
+
+/* ── HEADER ── */
+#header {
+  padding: 16px 18px 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#brand-icon {
+  width: 32px; height: 32px;
+  background: var(--green);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem; flex-shrink: 0;
+}
+
+#header-text { flex: 1; }
+#brand-name {
+  font-family: var(--font-b);
+  font-size: 1rem; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--text);
+  line-height: 1;
+}
+#brand-name span { color: var(--green); }
+#brand-status {
+  font-family: var(--font-m);
+  font-size: 9px; color: var(--muted);
+  letter-spacing: 1px; margin-top: 2px;
+}
+#brand-status.on  { color: var(--green); }
+#brand-status.off { color: #444; }
+
+#header-toggle {
+  width: 44px; height: 24px;
+  border-radius: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  position: relative; cursor: pointer; flex-shrink: 0;
+  transition: background 0.3s, border-color 0.3s;
+}
+#header-toggle.on {
+  background: var(--green-dim);
+  border-color: var(--green-mid);
+}
+#toggle-knob {
+  position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px;
+  border-radius: 50%; background: var(--muted);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s;
+}
+#header-toggle.on #toggle-knob {
+  transform: translateX(20px);
+  background: var(--green);
+  box-shadow: 0 0 8px var(--green-mid);
+}
+
+/* ── TAB NAV ── */
+#tab-nav {
+  display: flex; gap: 4px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+  flex: 1; padding: 7px 4px;
+  background: transparent; border: none;
+  border-radius: 8px;
+  color: var(--muted);
+  font-family: var(--font-m);
+  font-size: 9px; letter-spacing: 1px;
+  text-transform: uppercase; cursor: pointer;
+  transition: all 0.2s;
+}
+.tab-btn.active {
+  background: var(--surface2);
+  color: var(--text);
+}
+.tab-btn:hover:not(.active) { color: var(--text); }
+
+/* ── TAB PANES ── */
+.tab-pane { display: none; overflow-y: auto; max-height: 530px; }
+.tab-pane.active { display: block; }
+
+/* ── OVERVIEW TAB ── */
+
+/* Shield Score Card */
+#score-card {
+  margin: 14px 14px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+#score-card::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 130px; height: 130px;
+  background: radial-gradient(circle, var(--green-dim) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+#score-gauge-wrap {
+  position: relative;
+  width: 90px; height: 54px;
+  flex-shrink: 0;
+}
+#score-gauge-wrap svg { overflow: visible; }
+#score-number {
+  position: absolute;
+  bottom: -2px; left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-b);
+  font-size: 22px; font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text); line-height: 1;
+  white-space: nowrap;
+}
+
+#score-info { flex: 1; min-width: 0; }
+#score-mono-label {
+  font-family: var(--font-m);
+  font-size: 8px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 4px;
+}
+#score-band-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-m); font-size: 11px; font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  margin-bottom: 6px;
+  color: var(--green);
+  background: var(--green-dim);
+  border-color: var(--green-mid);
+}
+#score-desc-text {
+  font-size: 11px; color: var(--muted); line-height: 1.4;
+  font-weight: 400;
+}
+#score-sync-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 6px;
+}
+#score-last-sync {
+  font-family: var(--font-m); font-size: 8px;
+  color: var(--muted); flex: 1;
+}
+#score-sync-mini-btn {
+  font-family: var(--font-m); font-size: 8px;
+  letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--green); background: var(--green-dim);
+  border: 1px solid var(--green-mid);
+  border-radius: 6px; padding: 3px 8px;
+  cursor: pointer; transition: background 0.2s;
+  white-space: nowrap;
+}
+#score-sync-mini-btn:hover { background: #00e5a025; }
+#score-sync-mini-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Budget Hero */
+#budget-hero {
+  margin: 12px 14px 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px 14px;
+  position: relative; overflow: hidden;
+}
+
+#budget-month {
+  font-family: var(--font-m); font-size: 8px;
+  letter-spacing: 2px; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 8px;
+}
+#budget-display {
+  display: flex; align-items: baseline; gap: 4px; margin-bottom: 10px;
+}
+#budget-spent-big {
+  font-family: var(--font-b); font-size: 38px; font-weight: 800;
+  letter-spacing: -0.04em; color: var(--text); line-height: 1;
+}
+#budget-divider { font-family: var(--font-m); font-size: 14px; color: var(--muted); }
+#budget-total-big {
+  font-family: var(--font-b); font-size: 22px; font-weight: 700;
+  letter-spacing: -0.03em; color: var(--muted);
+}
+#budget-bar {
+  height: 4px; background: var(--surface2);
+  border-radius: 2px; overflow: hidden; margin-bottom: 6px;
+}
+#budget-fill {
+  height: 100%; border-radius: 2px;
+  background: var(--green); width: 0%;
+  transition: width 0.7s cubic-bezier(0.25, 1, 0.5, 1), background 0.4s;
+}
+#budget-fill.warn     { background: var(--yellow); }
+#budget-fill.danger   { background: #ff8c42; }
+#budget-fill.critical { background: var(--red); box-shadow: 0 0 8px var(--red); }
+#budget-meta {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-m); font-size: 9px; color: var(--muted);
+}
+
+/* Stats Grid */
+#stats-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 8px; margin: 8px 14px 0;
+}
+.stat-cell {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 14px;
+}
+.stat-num {
+  font-family: var(--font-b); font-size: 24px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--text); line-height: 1; margin-bottom: 3px;
+}
+.stat-lbl {
+  font-family: var(--font-m); font-size: 8px;
+  letter-spacing: 1px; color: var(--muted); text-transform: uppercase;
+}
+
+/* Streak Row */
+#streak-row {
+  margin: 8px 14px 0;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+#streak-emoji { font-size: 24px; }
+#streak-label {
+  font-family: var(--font-m); font-size: 8px;
+  letter-spacing: 1.5px; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 1px;
+}
+#streak-num {
+  font-family: var(--font-b); font-size: 22px; font-weight: 800;
+  letter-spacing: -0.03em; color: var(--text); line-height: 1;
+}
+#streak-dots { display: flex; gap: 4px; margin-left: auto; }
+.sdot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--surface2); border: 1px solid var(--border);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.sdot.lit { background: var(--yellow); box-shadow: 0 0 5px #ffd16680; border-color: transparent; }
+
+/* Quick Actions */
+#quick-actions {
+  margin: 8px 14px 14px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+}
+.q-btn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-m); font-size: 9px;
+  letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer; transition: all 0.2s;
+  text-align: left; display: flex; align-items: center; gap: 7px;
+}
+.q-btn:hover { background: var(--surface2); color: var(--text); border-color: #2e3f60; }
+.q-btn.danger-btn {
+  background: var(--red-dim); color: rgba(255,77,109,0.6);
+  border-color: rgba(255,77,109,0.2);
+}
+.q-btn.danger-btn:hover { background: rgba(255,77,109,0.12); }
+
+/* ── SETTINGS TAB ── */
+#settings-pane { padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+
+.setting-section-label {
+  font-family: var(--font-m); font-size: 8px;
+  letter-spacing: 2px; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 8px;
+}
+
+.setting-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.setting-row {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 8px;
+}
+.setting-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.setting-hint { font-size: 11px; color: var(--muted); margin-top: 1px; font-family: var(--font-m); }
+.setting-val {
+  font-family: var(--font-b); font-size: 18px; font-weight: 700;
+  color: var(--green);
+}
+
+input[type="range"] {
+  width: 100%; -webkit-appearance: none;
+  height: 3px; background: var(--border);
+  border-radius: 2px; outline: none; margin-top: 4px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: var(--green); cursor: pointer;
+  box-shadow: 0 0 0 3px var(--green-dim);
+}
+
+.threshold-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+}
+.threshold-chip {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 10px;
+}
+.tc-label {
+  font-family: var(--font-m); font-size: 7px;
+  letter-spacing: 1.5px; color: var(--muted);
+  text-transform: uppercase; margin-bottom: 3px;
+}
+.tc-val {
+  font-family: var(--font-b); font-size: 16px;
+  font-weight: 700; color: var(--text);
+}
+
+/* Profile / API Settings */
+.profile-input-group { display: flex; flex-direction: column; gap: 8px; }
+.profile-field label {
+  font-family: var(--font-m); font-size: 8px;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); display: block; margin-bottom: 4px;
+}
+.profile-field input {
+  width: 100%; background: var(--surface2);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; color: var(--text);
+  font-family: var(--font-m); font-size: 12px;
+  outline: none; transition: border-color 0.2s;
+}
+.profile-field input:focus { border-color: var(--green); }
+.profile-field input::placeholder { color: var(--muted); }
+
+#sync-btn {
+  width: 100%; padding: 10px;
+  background: var(--green-dim);
+  border: 1px solid var(--green-mid);
+  border-radius: 8px; color: var(--green);
+  font-family: var(--font-m); font-size: 10px;
+  letter-spacing: 1px; text-transform: uppercase;
+  cursor: pointer; transition: background 0.2s;
+  margin-top: 4px;
+}
+#sync-btn:hover { background: #00e5a025; }
+#sync-btn:disabled { opacity: 0.5; cursor: default; }
+#sync-status {
+  font-family: var(--font-m); font-size: 9px;
+  text-align: center; color: var(--muted);
+  margin-top: 4px; min-height: 14px;
+}
+#sync-status.ok  { color: var(--green); }
+#sync-status.err { color: var(--red); }
+
+/* Currency buttons */
+.currency-btn {
+  flex: 1; padding: 9px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface2); color: var(--muted);
+  font-family: var(--font-m); font-size: 11px;
+  cursor: pointer; transition: all 0.2s;
+}
+.currency-btn.active {
+  background: var(--green-dim);
+  border-color: var(--green-mid);
+  color: var(--green);
+}
+.currency-btn:hover:not(.active) { color: var(--text); }
+
+/* ── DUCK GAME ── */
+#duck-game-area { padding: 18px; text-align: center; }
+#duck-intro { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 16px 0; }
+#duck-intro-emoji { font-size: 48px; animation: duck-bob 2s ease-in-out infinite; }
+#duck-intro-title {
+  font-family: var(--font-b); font-size: 20px; font-weight: 800;
+  letter-spacing: -0.02em; color: var(--text);
+}
+#duck-intro-sub { font-family: var(--font-m); font-size: 11px; color: var(--muted); line-height: 1.5; max-width: 220px; }
+
+@keyframes duck-bob {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  50% { transform: translateY(-8px) rotate(3deg); }
+}
+
+#duck-scene {
+  position: relative; width: 150px; height: 150px;
+  margin: 0 auto 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+#duck-water-ring {
+  position: absolute; inset: 20px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,229,160,0.08), rgba(0,229,160,0.02));
+  border: 1px solid rgba(0,229,160,0.12);
+  animation: water-ripple 3s ease-in-out infinite;
+}
+@keyframes water-ripple {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.05); opacity: 1; }
+}
+#duck-body {
+  width: 96px; height: 96px;
+  background: radial-gradient(circle at 40% 35%, #ffe066, #ffd43b, #f59f00);
+  border-radius: 50% 50% 45% 45%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(255,212,59,0.3), inset 0 -4px 8px rgba(0,0,0,0.1);
+  transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.1s;
+  user-select: none; position: relative; z-index: 2;
+}
+#duck-body:hover { box-shadow: 0 12px 32px rgba(255,212,59,0.45), inset 0 -4px 8px rgba(0,0,0,0.1); }
+#duck-body.squeezing { transform: scale(0.82) rotate(-5deg); }
+#duck-body.bounce { animation: duck-squeeze-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes duck-squeeze-bounce {
+  0% { transform: scale(0.82) rotate(-5deg); }
+  60% { transform: scale(1.15) rotate(5deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+#duck-emoji-wrap { font-size: 44px; line-height: 1; pointer-events: none; }
+#duck-squeaks { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+.squeak-particle {
+  position: absolute; font-size: 13px;
+  font-family: var(--font-m); color: var(--yellow);
+  pointer-events: none;
+  animation: squeak-fly 0.8s ease-out forwards;
+  white-space: nowrap;
+}
+@keyframes squeak-fly {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-40px) scale(0.6); }
+}
+#duck-wisdom-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 12px 16px;
+  margin-bottom: 10px; min-height: 52px;
+  display: flex; align-items: center; justify-content: center;
+}
+#duck-wisdom-text {
+  font-size: 12px; color: var(--text); line-height: 1.5;
+  text-align: center; transition: opacity 0.3s;
+}
+#duck-squeak-count-row {
+  font-family: var(--font-b); font-size: 18px; font-weight: 700;
+  color: var(--yellow); letter-spacing: -0.02em;
+}
+#duck-squeak-count { font-size: 28px; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div id="brand-icon">🛡️</div>
+  <div id="header-text">
+    <div id="brand-name">Debt<span>Shield</span></div>
+    <div id="brand-status" class="on">● PROTECTION ACTIVE</div>
+  </div>
+  <div id="header-toggle" class="on">
+    <div id="toggle-knob"></div>
+  </div>
+</div>
+
+<div id="tab-nav">
+  <button class="tab-btn active" data-tab="overview">Overview</button>
+  <button class="tab-btn" data-tab="settings">Settings</button>
+  <button class="tab-btn" data-tab="duck">🦆 Destress</button>
+</div>
+
+<!-- ── OVERVIEW ── -->
+<div class="tab-pane active" id="tab-overview">
+
+  <!-- Shield Score -->
+  <div id="score-card">
+    <div id="score-gauge-wrap">
+      <svg viewBox="0 0 90 54" width="90" height="54">
+        <!-- Track -->
+        <path d="M 8,50 A 37,37 0 0,1 82,50"
+              fill="none" stroke="#1e2d4a" stroke-width="7" stroke-linecap="round"/>
+        <!-- Fill -->
+        <path id="score-arc-fill"
+              d="M 8,50 A 37,37 0 0,1 82,50"
+              fill="none" stroke="#00e5a0" stroke-width="7" stroke-linecap="round"
+              stroke-dasharray="116 116" stroke-dashoffset="116"/>
+      </svg>
+      <div id="score-number">--</div>
+    </div>
+    <div id="score-info">
+      <div id="score-mono-label">Shield Score</div>
+      <div id="score-band-chip">● --</div>
+      <div id="score-desc-text">Sync your profile to see your financial resilience score.</div>
+      <div id="score-sync-row">
+        <div id="score-last-sync">Never synced</div>
+        <button id="score-sync-mini-btn">↻ Sync</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Budget -->
+  <div id="budget-hero">
+    <div id="budget-month"></div>
+    <div id="budget-display">
+      <div id="budget-spent-big">£0</div>
+      <div id="budget-divider">/</div>
+      <div id="budget-total-big">—</div>
+    </div>
+    <div id="budget-bar"><div id="budget-fill"></div></div>
+    <div id="budget-meta">
+      <span id="budget-pct-label">0% used</span>
+      <span id="budget-left-label">£500 remaining</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div id="stats-grid">
+    <div class="stat-cell">
+      <div class="stat-num" id="s-intercepted">0</div>
+      <div class="stat-lbl">Caught today</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num" id="s-proceeded">0</div>
+      <div class="stat-lbl">Proceeded</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num" id="s-session">£0</div>
+      <div class="stat-lbl">Spent today</div>
+    </div>
+  </div>
+
+  <!-- Streak -->
+  <div id="streak-row">
+    <div id="streak-emoji">🌱</div>
+    <div>
+      <div id="streak-label">Safe Day Streak</div>
+      <div id="streak-num">0</div>
+    </div>
+    <div id="streak-dots"></div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div id="quick-actions">
+    <button class="q-btn" id="q-scan">⌖ Scan Page</button>
+    <button class="q-btn" id="q-duck">🦆 Destress</button>
+    <button class="q-btn" id="q-hud">⊡ Toggle HUD</button>
+    <button class="q-btn danger-btn" id="q-reset">↺ Reset Today</button>
+  </div>
+
+</div>
+
+<!-- ── SETTINGS ── -->
+<div class="tab-pane" id="tab-settings">
+  <div id="settings-pane">
+
+    <!-- Profile & Sync -->
+    <div>
+      <div class="setting-section-label">Profile & Score Sync</div>
+      <div class="setting-card">
+        <div class="profile-input-group">
+          <div class="profile-field">
+            <label>Your Name (as entered at onboarding)</label>
+            <input type="text" id="setting-username" placeholder="e.g. Alex" />
+          </div>
+          <div class="profile-field">
+            <label>API Base URL</label>
+            <input type="text" id="setting-apibase" placeholder="http://localhost:8000" />
+          </div>
+        </div>
+        <button id="sync-btn">↻ Sync Score & Goals</button>
+        <div id="sync-status"></div>
+      </div>
+    </div>
+
+    <!-- Monthly Budget -->
+    <div>
+      <div class="setting-section-label">Monthly Budget (fallback if not synced)</div>
+      <div class="setting-card">
+        <div class="setting-row">
+          <div>
+            <div class="setting-name">Spending limit</div>
+            <div class="setting-hint">Alerts ramp up as you approach this</div>
+          </div>
+          <div class="setting-val" id="budget-val-display">£500</div>
+        </div>
+        <input type="range" id="budget-slider" min="50" max="5000" step="50" value="500">
+      </div>
+    </div>
+
+    <!-- Risk Thresholds -->
+    <div>
+      <div class="setting-section-label">Risk Thresholds</div>
+      <div class="setting-card">
+        <div class="threshold-grid">
+          <div class="threshold-chip">
+            <div class="tc-label">🚨 Critical</div>
+            <div class="tc-val" id="tc-critical">£200</div>
+          </div>
+          <div class="threshold-chip">
+            <div class="tc-label">⚠️ High</div>
+            <div class="tc-val" id="tc-high">£50</div>
+          </div>
+          <div class="threshold-chip">
+            <div class="tc-label">◆ Medium</div>
+            <div class="tc-val" id="tc-medium">£15</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Currency -->
+    <div>
+      <div class="setting-section-label">Currency</div>
+      <div class="setting-card">
+        <div style="display:flex;gap:6px;">
+          <button class="currency-btn q-btn" data-c="£">£ GBP</button>
+          <button class="currency-btn q-btn" data-c="$">$ USD</button>
+          <button class="currency-btn q-btn" data-c="€">€ EUR</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── DUCK DESTRESS ── -->
+<div class="tab-pane" id="tab-duck">
+  <div id="duck-game-area">
+    <div id="duck-intro">
+      <div id="duck-intro-emoji">🦆</div>
+      <div id="duck-intro-title">Rubber Duck Therapy</div>
+      <div id="duck-intro-sub">Squeeze the duck. Tell it your problems. It gets it.</div>
+      <button id="duck-start-btn" class="q-btn" style="margin:0 auto;justify-content:center;padding:10px 20px;">Start squeezing</button>
+    </div>
+    <div id="duck-active" style="display:none;">
+      <div id="duck-scene">
+        <div id="duck-water-ring"></div>
+        <div id="duck-body">
+          <div id="duck-emoji-wrap">🦆</div>
+        </div>
+        <div id="duck-squeaks"></div>
+      </div>
+      <div id="duck-wisdom-box">
+        <div id="duck-wisdom-text">Go on then, give it a squeeze...</div>
+      </div>
+      <div id="duck-squeak-count-row">
+        <span id="duck-squeak-count">0</span> squeaks
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

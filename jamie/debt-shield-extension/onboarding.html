@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DebtShield — Onboarding</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #090e1a; --surface: #111827; --surface2: #1a2540;
+    --border: #1e2d4a; --green: #00e5a0; --green-dim: #00e5a020;
+    --green-mid: #00e5a060; --text: #e8edf5; --text-muted: #6b7a99;
+    --red: #ff4d6d; --yellow: #ffd166;
+  }
+  body {
+    font-family: 'Syne', sans-serif; background: var(--bg); color: var(--text);
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 2rem 1rem; overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; top: -30%; left: 50%; transform: translateX(-50%);
+    width: 700px; height: 700px;
+    background: radial-gradient(ellipse, #00e5a012 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  .shell { position: relative; z-index: 1; width: 100%; max-width: 560px; }
+  .brand { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 2.5rem; }
+  .brand-icon { width: 36px; height: 36px; background: var(--green); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+  .brand-name { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+  .brand-name span { color: var(--green); }
+
+  .progress-track { display: flex; gap: 6px; margin-bottom: 2rem; }
+  .progress-seg { height: 3px; flex: 1; background: var(--border); border-radius: 99px; transition: background 0.4s ease; }
+  .progress-seg.active { background: var(--green); }
+  .progress-seg.done   { background: var(--green-mid); }
+
+  .step-label { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; margin-bottom: 1rem; }
+  .card-title { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.4rem; }
+  .card-subtitle { color: var(--text-muted); font-size: 0.9rem; font-weight: 400; margin-bottom: 1.8rem; line-height: 1.5; }
+
+  /* Fields */
+  .field { margin-bottom: 1.2rem; }
+  .field label { display: block; font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 0.45rem; }
+  .field input, .field select {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 0.75rem 1rem; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 0.95rem; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s; appearance: none; -webkit-appearance: none;
+  }
+  .field select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a99' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem; cursor: pointer; }
+  .field select option { background: #1a2540; color: var(--text); }
+  .field input:focus, .field select:focus { border-color: var(--green); box-shadow: 0 0 0 3px var(--green-dim); }
+  .field input::placeholder { color: var(--text-muted); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; }
+  .hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.3rem; font-family: 'DM Mono', monospace; }
+
+  /* ── CSV Drop Zone ── */
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 14px;
+    padding: 2.5rem 1.5rem; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--surface2);
+  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--green); background: var(--green-dim); }
+  .drop-zone input[type="file"] { display: none; }
+  .drop-icon { font-size: 2rem; margin-bottom: 0.8rem; }
+  .drop-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.3rem; }
+  .drop-sub { font-size: 0.82rem; color: var(--text-muted); font-family: 'DM Mono', monospace; }
+  .drop-btn {
+    display: inline-block; margin-top: 1rem;
+    background: var(--green-dim); border: 1px solid var(--green-mid);
+    border-radius: 8px; padding: 0.45rem 1rem;
+    color: var(--green); font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 700;
+    cursor: pointer; transition: background 0.2s;
+  }
+  .drop-btn:hover { background: #00e5a030; }
+
+  /* ── CSV Preview Card ── */
+  .csv-preview {
+    display: none; margin-top: 1.2rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.2rem; animation: slideIn 0.25s ease;
+  }
+  .csv-preview.visible { display: block; }
+  @keyframes slideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+
+  .csv-preview-title {
+    font-family: 'DM Mono', monospace; font-size: 0.68rem; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.8rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .csv-ok-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; flex-shrink: 0; }
+
+  .csv-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.8rem; }
+  .csv-stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 0.8rem; }
+  .csv-stat .cs-label { font-family: 'DM Mono', monospace; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.2rem; }
+  .csv-stat .cs-value { font-family: 'DM Mono', monospace; font-size: 0.95rem; font-weight: 500; }
+
+  .csv-months-note { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text-muted); line-height: 1.5; }
+
+  .csv-recent-title { font-family: 'DM Mono', monospace; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin: 0.9rem 0 0.45rem; }
+  .csv-txn { display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0; border-bottom: 1px solid var(--border); font-family: 'DM Mono', monospace; font-size: 0.78rem; }
+  .csv-txn:last-child { border-bottom: none; }
+  .csv-txn-date { color: var(--text-muted); flex-shrink: 0; font-size: 0.7rem; min-width: 90px; }
+  .csv-txn-name { flex: 1; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .csv-txn-amt  { flex-shrink: 0; font-weight: 500; }
+
+  .reupload-btn {
+    background: none; border: none; color: var(--text-muted); font-family: 'DM Mono', monospace;
+    font-size: 0.72rem; cursor: pointer; padding: 0; margin-top: 0.6rem;
+    text-decoration: underline; transition: color 0.2s;
+  }
+  .reupload-btn:hover { color: var(--text); }
+
+  /* ── Draggable Goal Items ── */
+  .items-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1rem; }
+
+  /* debt items (unchanged style) */
+  .list-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; animation: slideIn 0.25s ease; }
+  .list-item input, .list-item select {
+    background: transparent; border: none; border-bottom: 1px solid var(--border);
+    border-radius: 0; padding: 0.35rem 0; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 0.88rem;
+    outline: none; transition: border-color 0.2s; width: 100%;
+    appearance: none; -webkit-appearance: none;
+  }
+  .list-item select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7a99' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 0.3rem center; padding-right: 1.5rem; cursor: pointer; }
+  .list-item select option { background: #1a2540; }
+  .list-item input:focus, .list-item select:focus { border-color: var(--green); box-shadow: none; }
+  .list-item input::placeholder { color: var(--text-muted); }
+  .ifl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.25rem; font-family: 'DM Mono', monospace; display: flex; justify-content: space-between; align-items: center; }
+  .autofill-badge { font-size: 0.6rem; color: var(--yellow); background: #ffd16618; border: 1px solid #ffd16640; border-radius: 4px; padding: 0.1rem 0.35rem; }
+  .apr-hint { font-size: 0.68rem; color: var(--yellow); font-family: 'DM Mono', monospace; margin-top: 0.25rem; display: none; }
+  .apr-hint.visible { display: block; }
+  .indefinite-toggle { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.6rem; cursor: pointer; user-select: none; }
+  .indefinite-toggle input[type="checkbox"] { display: none; }
+  .toggle-track { width: 32px; height: 18px; background: var(--border); border-radius: 99px; position: relative; transition: background 0.2s; flex-shrink: 0; }
+  .toggle-track::after { content: ''; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; background: var(--text-muted); border-radius: 50%; transition: transform 0.2s, background 0.2s; }
+  .indefinite-toggle input:checked + .toggle-track { background: #ffd16640; }
+  .indefinite-toggle input:checked + .toggle-track::after { transform: translateX(14px); background: var(--yellow); }
+  .toggle-label { font-size: 0.72rem; font-family: 'DM Mono', monospace; color: var(--text-muted); transition: color 0.2s; }
+  .indefinite-toggle input:checked ~ .toggle-label { color: var(--yellow); }
+  .indefinite-chip { font-family: 'DM Mono', monospace; font-size: 0.88rem; color: var(--yellow); padding: 0.35rem 0; border-bottom: 1px solid var(--border); letter-spacing: 0.02em; }
+  .item-remove-row { display: flex; justify-content: flex-end; margin-top: 0.8rem; }
+  .item-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.78rem; font-family: 'DM Mono', monospace; padding: 0.2rem 0.4rem; transition: color 0.2s; }
+  .item-remove:hover { color: var(--red); }
+  .add-item-btn { width: 100%; background: var(--green-dim); border: 1px dashed var(--green-mid); border-radius: 10px; padding: 0.7rem; color: var(--green); font-family: 'Syne', sans-serif; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s; letter-spacing: 0.02em; }
+  .add-item-btn:hover { background: #00e5a030; }
+  .add-item-btn.debt-btn { background: #ff4d6d10; border-color: #ff4d6d40; color: #ff8fa3; }
+  .add-item-btn.debt-btn:hover { background: #ff4d6d20; }
+
+  /* ── Goal drag items ── */
+  .goal-drag-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 0.8rem 1rem;
+    display: flex; align-items: center; gap: 0.85rem;
+    cursor: grab; user-select: none;
+    transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+    animation: slideIn 0.2s ease;
+  }
+  .goal-drag-item.dragging    { opacity: 0.35; cursor: grabbing; }
+  .goal-drag-item.drag-target { border-color: var(--green); box-shadow: 0 0 0 2px var(--green-dim); }
+  .drag-handle { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; color: var(--text-muted); padding: 2px; }
+  .drag-handle span { display: block; width: 14px; height: 2px; background: currentColor; border-radius: 2px; }
+  .priority-badge {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; font-size: 0.68rem; font-weight: 700;
+    background: var(--green-dim); border: 1px solid var(--green-mid); color: var(--green);
+    transition: background 0.2s;
+  }
+  .goal-fields { flex: 1; display: grid; grid-template-columns: 1fr 120px; gap: 0.8rem; align-items: end; }
+  .goal-finput-wrap .goal-finput-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.2rem; font-family: 'DM Mono', monospace; }
+  .goal-finput {
+    width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border);
+    border-radius: 0; padding: 0.3rem 0; color: var(--text);
+    font-family: 'DM Mono', monospace; font-size: 0.88rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  .goal-finput:focus { border-color: var(--green); }
+  .goal-finput::placeholder { color: var(--text-muted); }
+  .goal-remove-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 0.78rem; font-family: 'DM Mono', monospace; padding: 0.2rem 0.3rem; transition: color 0.2s; flex-shrink: 0; }
+  .goal-remove-btn:hover { color: var(--red); }
+
+  /* ── Allocation slider ── */
+  .alloc-box {
+    margin-top: 1.2rem; padding: 1.2rem 1.3rem;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 12px;
+  }
+  .alloc-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 0.9rem; }
+  .alloc-label { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+  .alloc-pct { font-family: 'DM Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--green); line-height: 1; }
+  .alloc-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 5px; border-radius: 99px;
+    background: var(--border); outline: none; cursor: pointer;
+  }
+  .alloc-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    background: var(--green); border: 3px solid var(--bg); cursor: pointer;
+    box-shadow: 0 0 0 3px var(--green-dim); transition: box-shadow 0.2s;
+  }
+  .alloc-slider::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px var(--green-dim); }
+  .alloc-slider::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--green); border: 3px solid var(--bg); cursor: pointer; }
+  .alloc-sub { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--text-muted); margin-top: 0.65rem; line-height: 1.5; }
+
+  /* Summary */
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 1.4rem; }
+  .summary-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem 1rem; }
+  .summary-item .s-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.3rem; }
+  .summary-item .s-value { font-family: 'DM Mono', monospace; font-size: 1rem; font-weight: 500; color: var(--green); }
+  .summary-section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 0.55rem; }
+  .pill-row { margin-bottom: 1.2rem; }
+  .goal-pill, .debt-pill { display: inline-flex; align-items: center; gap: 0.4rem; border-radius: 99px; padding: 0.3rem 0.8rem; font-size: 0.78rem; margin: 0.2rem 0.2rem 0.2rem 0; font-family: 'DM Mono', monospace; }
+  .goal-pill { background: var(--green-dim); border: 1px solid var(--green-mid); color: var(--green); }
+  .debt-pill { background: #ff4d6d10; border: 1px solid #ff4d6d40; color: #ff8fa3; }
+  .no-items { font-family: 'DM Mono', monospace; font-size: 0.8rem; color: var(--text-muted); font-style: italic; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 0.8rem; margin-top: 1.5rem; }
+  .btn-back { flex: 0 0 auto; background: transparent; border: 1px solid var(--border); border-radius: 10px; padding: 0.8rem 1.2rem; color: var(--text-muted); font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+  .btn-back:hover { border-color: var(--text-muted); color: var(--text); }
+  .btn-next { flex: 1; background: var(--green); border: none; border-radius: 10px; padding: 0.85rem 1.5rem; color: #090e1a; font-family: 'Syne', sans-serif; font-weight: 800; font-size: 0.95rem; cursor: pointer; letter-spacing: 0.02em; transition: opacity 0.2s, transform 0.1s; }
+  .btn-next:hover { opacity: 0.9; }
+  .btn-next:active { transform: scale(0.98); }
+  .btn-next:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .step { display: none; }
+  .step.active { display: block; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+
+  .success-state { text-align: center; padding: 1rem 0; }
+  .success-icon { width: 64px; height: 64px; background: var(--green); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 1.8rem; animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  @keyframes popIn { from { transform:scale(0); } to { transform:scale(1); } }
+  .success-title { font-size: 1.6rem; font-weight: 800; margin-bottom: 0.5rem; }
+  .success-sub { color: var(--text-muted); font-size: 0.9rem; line-height: 1.6; }
+
+  .error-msg { background: #ff4d6d18; border: 1px solid #ff4d6d40; border-radius: 8px; padding: 0.7rem 1rem; color: var(--red); font-size: 0.85rem; margin-top: 0.8rem; display: none; font-family: 'DM Mono', monospace; }
+  .error-msg.visible { display: block; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-bottom: 0.8rem; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="brand">
+    <div class="brand-icon">🛡</div>
+    <div class="brand-name">Debt<span>Shield</span></div>
+  </div>
+
+  <div class="progress-track">
+    <div class="progress-seg active" id="seg-0"></div>
+    <div class="progress-seg" id="seg-1"></div>
+    <div class="progress-seg" id="seg-2"></div>
+    <div class="progress-seg" id="seg-3"></div>
+    <div class="progress-seg" id="seg-4"></div>
+  </div>
+
+  <!-- STEP 0: Name -->
+  <div class="step active" id="step-0">
+    <div class="card">
+      <div class="step-label">Step 1 of 5 — Identity</div>
+      <div class="card-title">Hey, what's your name?</div>
+      <div class="card-subtitle">We'll use this to personalise your financial profile. No account needed.</div>
+      <div class="field">
+        <label>Your Name</label>
+        <input type="text" id="name" placeholder="e.g. Jordan" autocomplete="off"/>
+      </div>
+      <div class="error-msg" id="err-0">Please enter your name to continue.</div>
+      <div class="btn-row"><button class="btn-next">Continue →</button></div>
+    </div>
+  </div>
+
+  <!-- STEP 1: CSV Upload -->
+  <div class="step" id="step-1">
+    <div class="card">
+      <div class="step-label">Step 2 of 5 — Bank Data</div>
+      <div class="card-title">Connect your bank data</div>
+      <div class="card-subtitle">Export a CSV from your bank and upload it here. DebtShield will automatically calculate your income, spending patterns, and account balance — no manual entry needed.</div>
+
+      <div class="drop-zone" id="drop-zone" id="drop-zone-clickable">
+        <input type="file" id="csv-input" accept=".csv"/>
+        <div class="drop-icon">📂</div>
+        <div class="drop-title">Drop your CSV here</div>
+        <div class="drop-sub">Supports exports from most major banks<br>Required columns: Date, Amount, Balance</div>
+        <div class="drop-btn">Browse files</div>
+      </div>
+
+      <!-- CSV preview / stats -->
+      <div class="csv-preview" id="csv-preview">
+        <div class="csv-preview-title">
+          <div class="csv-ok-dot"></div>
+          <span id="csv-filename">file.csv parsed</span>
+        </div>
+        <div class="csv-stats">
+          <div class="csv-stat">
+            <div class="cs-label">Starting Balance (B₀)</div>
+            <div class="cs-value" id="csv-b0">—</div>
+          </div>
+          <div class="csv-stat">
+            <div class="cs-label">Months of data</div>
+            <div class="cs-value" id="csv-months">—</div>
+          </div>
+          <div class="csv-stat">
+            <div class="cs-label">Avg Monthly Income</div>
+            <div class="cs-value" id="csv-income">—</div>
+          </div>
+          <div class="csv-stat">
+            <div class="cs-label">Avg Monthly Expenses</div>
+            <div class="cs-value" id="csv-expenses">—</div>
+          </div>
+          <div class="csv-stat">
+            <div class="cs-label">Income Std Dev</div>
+            <div class="cs-value" id="csv-income-sd">—</div>
+          </div>
+          <div class="csv-stat">
+            <div class="cs-label">Expense Std Dev</div>
+            <div class="cs-value" id="csv-expense-sd">—</div>
+          </div>
+        </div>
+        <div class="csv-months-note" id="csv-note"></div>
+        <div class="csv-recent-title">Recent transactions</div>
+        <div id="csv-recent"></div>
+        <button class="reupload-btn" id="reupload-btn">↩ Upload a different file</button>
+      </div>
+
+      <div class="field" style="margin-top:1.2rem">
+        <label>Total Credit Limit ($)</label>
+        <input type="number" id="credit" placeholder="0.00" min="0" step="0.01"/>
+        <div class="hint">Combined across all credit cards</div>
+      </div>
+
+      <div class="error-msg" id="err-1">Please upload a valid CSV file before continuing.</div>
+      <div class="btn-row">
+        <button class="btn-back">← Back</button>
+        <button class="btn-next">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: Goals — name + amount only, drag-to-prioritise, allocation slider -->
+  <div class="step" id="step-2">
+    <div class="card">
+      <div class="step-label">Step 3 of 5 — Your Goals</div>
+      <div class="card-title">What are you saving for?</div>
+      <div class="card-subtitle">Add your savings goals, then drag them into priority order — most important at the top. DebtShield will protect them proportionally.</div>
+
+      <div class="items-list" id="goals-list"></div>
+      <button class="add-item-btn">+ Add a savings goal</button>
+
+      <!-- Allocation slider -->
+      <div class="alloc-box">
+        <div class="alloc-head">
+          <span class="alloc-label">Savings allocation</span>
+          <span class="alloc-pct" id="alloc-display">50%</span>
+        </div>
+        <input type="range" class="alloc-slider" id="alloc-slider"
+          min="1" max="100" value="50"/>
+        <div class="alloc-sub" id="alloc-sub">
+          50% of your monthly surplus will be split across your goals by priority.
+        </div>
+      </div>
+
+      <div class="error-msg" id="err-2">Please add at least one goal with a name and target amount.</div>
+      <div class="btn-row">
+        <button class="btn-back">← Back</button>
+        <button class="btn-next">Continue →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3: Debts -->
+  <div class="step" id="step-3">
+    <div class="card">
+      <div class="step-label">Step 4 of 5 — Your Debts</div>
+      <div class="card-title">What do you currently owe?</div>
+      <div class="card-subtitle">DebtShield uses this to model the true cost of new debt. Don't have any? Just skip ahead.</div>
+      <div class="items-list" id="debts-list"></div>
+      <button class="add-item-btn debt-btn">+ Add a debt</button>
+      <div class="error-msg" id="err-3">Please fill in all fields for each debt you've added.</div>
+      <div class="btn-row">
+        <button class="btn-back">← Back</button>
+        <button class="btn-next">Review →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4: Review -->
+  <div class="step" id="step-4">
+    <div class="card">
+      <div class="step-label">Step 5 of 5 — Review</div>
+      <div class="card-title">Does this look right?</div>
+      <div class="card-subtitle">DebtShield will use these details to calculate the real impact of purchases before you commit.</div>
+      <div class="summary-grid" id="summary-grid"></div>
+      <div class="summary-section-label">Savings Goals (priority order)</div>
+      <div class="pill-row" id="goals-pills"></div>
+      <div class="summary-section-label">Debts</div>
+      <div class="pill-row" id="debts-pills"></div>
+      <div class="error-msg" id="err-4"></div>
+      <div class="btn-row">
+        <button class="btn-back">← Back</button>
+        <button class="btn-next" id="submit-btn">Activate DebtShield 🛡</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="step" id="step-success">
+    <div class="card">
+      <div class="success-state">
+        <div class="success-icon">✓</div>
+        <div class="success-title">You're protected.</div>
+        <div class="success-sub" id="success-msg">DebtShield is now active.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="onboarding.js"></script>
+</body>
+</html>
