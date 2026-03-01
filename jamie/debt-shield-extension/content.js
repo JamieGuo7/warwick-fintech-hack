@@ -568,8 +568,16 @@
               </div>
               <div id="ds-game-balloon" class="ds-game-screen">
                 <div id="ds-balloon-instruction">Hold the button to inflate!</div>
-                <div id="ds-balloon-scene"><div id="ds-balloon-body">🎈</div><div id="ds-balloon-string"></div></div>
-                <div id="ds-balloon-zone"><div id="ds-balloon-zone-fill"></div><div id="ds-balloon-zone-target"></div><div id="ds-balloon-zone-label">Perfect zone</div></div>
+                <div id="ds-balloon-play-area">
+                  <div id="ds-balloon-zone">
+                    <div id="ds-balloon-zone-fill"></div>
+                    <div id="ds-balloon-zone-target"></div>
+                  </div>
+                  <div id="ds-balloon-scene">
+                    <div id="ds-balloon-body">🎈</div>
+                    <div id="ds-balloon-string"></div>
+                  </div>
+                </div>
                 <button id="ds-balloon-btn">Hold to inflate</button>
                 <div id="ds-balloon-score">Score: 0</div>
               </div>
@@ -641,49 +649,67 @@
   }
 
   // ── BALLOON GAME ──────────────────────────────────────────────
-  // Hold button to inflate balloon. Release in the green zone = point. Pop = reset round.
+  // Vertical bar on the left, balloon on the right.
+  // Hold to inflate (fill rises). Release in the green zone = point.
+  // Perfect zone shifts every round to keep it fresh.
   function startBalloon() {
     document.querySelectorAll('.ds-game-screen').forEach(s => s.classList.remove('active'));
     document.getElementById('ds-game-balloon').classList.add('active');
 
-    const balloon = document.getElementById('ds-balloon-body');
-    const fill = document.getElementById('ds-balloon-zone-fill');
-    const btn = document.getElementById('ds-balloon-btn');
-    const scoreEl = document.getElementById('ds-balloon-score');
+    const balloon   = document.getElementById('ds-balloon-body');
+    const fill      = document.getElementById('ds-balloon-zone-fill');
+    const target    = document.getElementById('ds-balloon-zone-target');
+    const btn       = document.getElementById('ds-balloon-btn');
+    const scoreEl   = document.getElementById('ds-balloon-score');
     const instruction = document.getElementById('ds-balloon-instruction');
 
-    let size = 1, inflating = false, score = 0, totalRounds = 0;
-    const TARGET_MIN = 0.55, TARGET_MAX = 0.80, POP_THRESHOLD = 0.97;
-    const INFLATE_SPEED = 0.008, DEFLATE_SPEED = 0.012;
+    let size = 0.05, inflating = false, score = 0, totalRounds = 0;
+    let targetMin = 0.55, targetMax = 0.75;
+    const POP_THRESHOLD = 0.97;
+    const INFLATE_SPEED = 0.007, DEFLATE_SPEED = 0.011;
     let animFrame;
 
+    function newZone() {
+      const bottom = 0.35 + Math.random() * 0.35;
+      targetMin = bottom;
+      targetMax = Math.min(bottom + 0.20, 0.92);
+      target.style.bottom = `${targetMin * 100}%`;
+      target.style.top    = `${(1 - targetMax) * 100}%`;
+    }
+
     function updateVisuals() {
-      const scale = 0.6 + size * 2.4;
-      balloon.style.transform = `scale(${scale})`;
-      balloon.style.fontSize = `${30 + size * 40}px`;
       fill.style.height = `${size * 100}%`;
-      const inZone = size >= TARGET_MIN && size <= TARGET_MAX;
-      fill.style.background = size > TARGET_MAX ? (size > 0.9 ? '#ff6b6b' : '#ffa94d') : inZone ? '#69db7c' : '#74c0fc';
+      const inZone = size >= targetMin && size <= targetMax;
+      const danger = size > 0.88;
+      fill.style.background = danger ? '#ff6b6b' : size > targetMax ? '#ffa94d' : inZone ? '#69db7c' : '#74c0fc';
+      balloon.style.bottom   = `${5 + size * 68}%`;
+      balloon.style.fontSize = `${22 + size * 36}px`;
+      balloon.style.filter   = inZone
+        ? 'drop-shadow(0 0 10px rgba(105,219,124,0.7))'
+        : danger
+        ? 'drop-shadow(0 0 10px rgba(255,107,107,0.7))'
+        : 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))';
     }
 
     function loop() {
       if (inflating) {
         size = Math.min(1, size + INFLATE_SPEED);
         if (size >= POP_THRESHOLD) {
-          // POP!
           balloon.textContent = '💥';
-          balloon.style.transform = 'scale(2)';
+          balloon.style.fontSize = '52px';
+          balloon.style.filter = '';
           instruction.textContent = 'Too much! Try again 😅';
           btn.disabled = true;
+          inflating = false;
+          animFrame = null;
           setTimeout(() => {
             balloon.textContent = '🎈';
             size = 0.05;
             updateVisuals();
             instruction.textContent = 'Hold to inflate — release in the green zone!';
             btn.disabled = false;
-          }, 800);
-          inflating = false;
-          animFrame = null;
+            animFrame = requestAnimationFrame(loop);
+          }, 900);
           return;
         }
       } else {
@@ -694,7 +720,7 @@
     }
 
     function startInflate() {
-      if (size >= POP_THRESHOLD) return;
+      if (size >= POP_THRESHOLD || btn.disabled) return;
       inflating = true;
       btn.textContent = '🫁 Inflating...';
       btn.classList.add('ds-balloon-active');
@@ -702,41 +728,56 @@
     }
 
     function stopInflate() {
+      if (!inflating) return;
       inflating = false;
       btn.textContent = 'Hold to inflate';
       btn.classList.remove('ds-balloon-active');
-      if (size >= TARGET_MIN && size <= TARGET_MAX) {
+      if (size >= targetMin && size <= targetMax) {
         score++;
         totalRounds++;
-        scoreEl.textContent = `Score: ${score} 🎉`;
-        instruction.textContent = `Perfect! 🎯 +1 point`;
-        balloon.style.filter = 'drop-shadow(0 0 12px #69db7c)';
+        scoreEl.textContent = `Score: ${score} / 5`;
+        instruction.textContent = `Perfect release! 🎯`;
+        balloon.style.filter = 'drop-shadow(0 0 16px #69db7c)';
         setTimeout(() => {
-          balloon.style.filter = '';
-          instruction.textContent = 'Hold to inflate — release in the green zone!';
+          if (totalRounds >= 5) { cancelAnimationFrame(animFrame); animFrame = null; showGameDone(); return; }
           size = 0.05;
+          newZone();
           updateVisuals();
-          if (totalRounds >= 5) { cancelAnimationFrame(animFrame); animFrame = null; showGameDone(); }
-        }, 600);
-      } else if (size > TARGET_MAX) {
-        instruction.textContent = 'Too big! Try releasing sooner 📏';
+          instruction.textContent = 'Hold to inflate — release in the green zone!';
+        }, 700);
+      } else {
         totalRounds++;
-        if (totalRounds >= 5) { cancelAnimationFrame(animFrame); animFrame = null; showGameDone(); }
+        instruction.textContent = size > targetMax ? 'Too high! Release sooner 📏' : 'Too low — hold a bit longer!';
+        setTimeout(() => {
+          if (totalRounds >= 5) { cancelAnimationFrame(animFrame); animFrame = null; showGameDone(); return; }
+          size = 0.05;
+          newZone();
+          updateVisuals();
+          instruction.textContent = 'Hold to inflate — release in the green zone!';
+        }, 700);
       }
     }
 
-    btn.addEventListener('mousedown', startInflate);
-    btn.addEventListener('touchstart', (e) => { e.preventDefault(); startInflate(); });
-    btn.addEventListener('mouseup', stopInflate);
-    btn.addEventListener('mouseleave', stopInflate);
-    btn.addEventListener('touchend', (e) => { e.preventDefault(); stopInflate(); });
+    const abortCtrl = new AbortController();
+    const sig = abortCtrl.signal;
+    btn.addEventListener('mousedown', startInflate, { signal: sig });
+    btn.addEventListener('touchstart', (e) => { e.preventDefault(); startInflate(); }, { signal: sig });
+    btn.addEventListener('mouseup', stopInflate, { signal: sig });
+    btn.addEventListener('mouseleave', stopInflate, { signal: sig });
+    btn.addEventListener('touchend', (e) => { e.preventDefault(); stopInflate(); }, { signal: sig });
 
+    newZone();
     size = 0.05;
     updateVisuals();
     animFrame = requestAnimationFrame(loop);
 
-    gameTimer = { _raf: animFrame, clear: () => { if (animFrame) cancelAnimationFrame(animFrame); animFrame = null; } };
+    gameTimer = { clear: () => {
+      inflating = false;
+      if (animFrame) { cancelAnimationFrame(animFrame); animFrame = null; }
+      abortCtrl.abort();
+    } };
   }
+
 
   // ── FISH GAME ─────────────────────────────────────────────────
   // Catch fish by clicking them before they swim off screen. 20 seconds.
@@ -1422,6 +1463,10 @@
 
   function hideModal() {
     stopGame();
+    // Reset game area so next modal open always shows the intro picker, not a stale game
+    const gameIntro = document.getElementById('ds-game-intro');
+    if (gameIntro) gameIntro.style.display = '';
+    document.querySelectorAll('.ds-game-screen').forEach(s => s.classList.remove('active'));
     // Clean up any form submit blocks
     document.querySelectorAll('button[__dsIntercepted]').forEach(btn => {
       if (btn.__dsFormCleanup) { btn.__dsFormCleanup(); btn.__dsFormCleanup = null; }
