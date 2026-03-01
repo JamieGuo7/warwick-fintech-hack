@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Debt Shield",
+  "version": "2.0.0",
+  "description": "Real-time financial protection — intercepts purchases and shows the true impact on your goals.",
+  "permissions": ["storage", "tabs", "alarms", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Debt Shield"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["hud.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
