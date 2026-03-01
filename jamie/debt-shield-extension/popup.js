@@ -185,6 +185,11 @@ function attachEvents() {
     notifyTabs({ type: 'STATE_UPDATED' });
   });
 
+  document.getElementById('q-dashboard').addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
+    window.close();
+  });
+
   // Quick actions
   document.getElementById('q-scan').addEventListener('click', () => {
     notifyTabs({ type: 'MANUAL_SCAN' }); window.close();
@@ -226,16 +231,27 @@ function attachEvents() {
     });
   });
 
-  // Profile fields — save on change
+  // Profile fields — save on change, then auto-sync after a short debounce
+  let autoSyncTimer = null;
+  function scheduleAutoSync() {
+    clearTimeout(autoSyncTimer);
+    autoSyncTimer = setTimeout(() => {
+      const nameVal = document.getElementById('setting-username').value.trim();
+      if (nameVal) syncProfile('score-sync-mini-btn', 'sync-status');
+    }, 1200);
+  }
+
   document.getElementById('setting-username').addEventListener('change', async (e) => {
     const userName = e.target.value.trim();
     appState.settings.userName = userName;
     await chrome.runtime.sendMessage({ type: 'UPDATE_SETTINGS', settings: { userName } });
+    scheduleAutoSync();
   });
   document.getElementById('setting-apibase').addEventListener('change', async (e) => {
     const apiBase = e.target.value.trim() || 'http://localhost:8000';
     appState.settings.apiBase = apiBase;
     await chrome.runtime.sendMessage({ type: 'UPDATE_SETTINGS', settings: { apiBase } });
+    scheduleAutoSync();
   });
 
   // Sync button (settings)

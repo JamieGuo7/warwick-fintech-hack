@@ -107,8 +107,8 @@
   const SITE_SELECTORS = {
     'ebay.co.uk':          '.x-price-primary [class*="textspans"]:first-child, .x-price-approx__price',
     'ebay.com':            '.x-price-primary [class*="textspans"]:first-child',
-    'amazon.co.uk':        '.a-price .a-offscreen, #corePriceDisplay_desktop_feature_div .a-price-whole, #priceblock_ourprice',
-    'amazon.com':          '.a-price .a-offscreen, #corePriceDisplay_desktop_feature_div .a-price-whole',
+    'amazon.co.uk':        '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen, #apex_desktop .a-price:not(.a-text-strike) .a-offscreen, #priceblock_ourprice, #priceblock_saleprice',
+    'amazon.com':          '#corePriceDisplay_desktop_feature_div .a-price .a-offscreen, #apex_desktop .a-price:not(.a-text-strike) .a-offscreen, #priceblock_ourprice, #priceblock_saleprice',
     'asos.com':            '[data-testid="current-price"], [class*="current-price"]',
     'argos.co.uk':         '[data-test="product-price"] strong, [class*="ProductPrice"]',
     'next.co.uk':          '[class*="Price-module__price"], [class*="styled__Price"]',
@@ -278,8 +278,25 @@
   }
 
   function getBestPrice() {
-    const top = getTopCandidates();
-    return top.length ? top[0].value : null;
+    const all = getAllPriceCandidates();
+    if (!all.length) return null;
+
+    // Priority 1: site-specific CSS selector (most trustworthy)
+    const siteHit = all.find(c => c.source.startsWith('site CSS'));
+    if (siteHit) return siteHit.value;
+
+    // Priority 2: structured data / meta tags
+    const structured = all.find(c => c.source === 'structured data (JSON-LD)' || c.source === 'meta tag');
+    if (structured) return structured.value;
+
+    // Priority 3: data attributes
+    const dataAttr = all.find(c => c.source === 'data attribute');
+    if (dataAttr) return dataAttr.value;
+
+    // Priority 4: highest-confidence generic match
+    // Among equals, prefer the most commonly seen value (likely the item price, not a total)
+    const sorted = [...all].sort((a, b) => b.confidence - a.confidence || a.value - b.value);
+    return sorted[0].value;
   }
 
   function getDomain() { return window.location.hostname.replace(/^www\./, ''); }
@@ -472,10 +489,6 @@
           <div id="ds-modal-message"></div>
           <div id="ds-modal-budget-ctx">
             <div class="ds-ctx-item">
-              <div class="ds-ctx-label">Monthly Spent</div>
-              <div class="ds-ctx-val" id="ds-ctx-spent">£0</div>
-            </div>
-            <div class="ds-ctx-item">
               <div class="ds-ctx-label">Surplus Left</div>
               <div class="ds-ctx-val" id="ds-ctx-left">—</div>
             </div>
@@ -500,6 +513,7 @@
           <div id="ds-tabs">
             <button class="ds-tab active" data-tab="reflect">🤔 Reflect</button>
             <button class="ds-tab" data-tab="game">🎮 Destress</button>
+            <button class="ds-tab" data-tab="duck">🦆 Duck</button>
           </div>
           <div id="ds-tab-reflect" class="ds-tab-pane active">
             <div id="ds-reflect-steps">
@@ -579,6 +593,23 @@
               </div>
             </div>
           </div>
+          <div id="ds-tab-duck" class="ds-tab-pane">
+            <div id="ds-duck-area">
+              <div id="ds-duck-scene">
+                <div id="ds-duck-ring"></div>
+                <div id="ds-duck-body"><div id="ds-duck-emoji">🦆</div></div>
+                <div id="ds-duck-particles"></div>
+              </div>
+              <div id="ds-duck-wisdom-box">
+                <div id="ds-duck-wisdom">Give it a squeeze...</div>
+              </div>
+              <div id="ds-duck-count-row"><span id="ds-duck-count">0</span> squeaks</div>
+            </div>
+          </div>
+        </div>
+        <div id="ds-waitlist-row">
+          <button id="ds-waitlist-btn">⏰ Remind me in 24h to reconsider</button>
+          <div id="ds-waitlist-countdown"></div>
         </div>
         <div id="ds-modal-actions">
           <button class="ds-modal-btn" id="ds-btn-dont-buy">← Keep my money</button>
@@ -982,6 +1013,79 @@
     gameTimer = null; // no interval needed
   }
 
+  // ── MODAL DUCK ────────────────────────────────────────────────
+  function initModalDuck() {
+    const WISDOMS = [
+      "Quack. I hear you. The algorithm knew your weaknesses.",
+      "That's a bold financial move. Or is it? Quack.",
+      "Have you tried closing the tab? Works every time. Quack.",
+      "The duck has seen things. Many shopping carts. Quack.",
+      "Impulse buy? In THIS economy? Quack quack.",
+      "Your future self is watching. They're disappointed. Quack.",
+      "The duck does not judge. The duck simply quacks.",
+      "Breathe. Close the tab. Drink water. Quack.",
+      "That item will still be there tomorrow. Probably. Quack.",
+      "The duck has absorbed your financial anxiety. You're welcome.",
+      "Is it in your budget? Be honest with the duck. Quack.",
+      "Squeeeeak. That's the sound of wisdom. Take it.",
+      "The duck says: sleep on it. Quack.",
+      "Every squeeze is a purchase not made. Quack. 💛",
+      "You're doing great. Truly. Quack quack quack.",
+      "Sir, this is a rubber duck. But also, same. Quack.",
+      "Have you considered that you don't need it? Quack.",
+    ];
+    const SQUEAK_WORDS = ['SQUEAK!', 'QUACK!', '💛', '✨', 'eep!', '*honk*'];
+
+    const duckBody     = document.getElementById('ds-duck-body');
+    const particles    = document.getElementById('ds-duck-particles');
+    const wisdomEl     = document.getElementById('ds-duck-wisdom');
+    const countEl      = document.getElementById('ds-duck-count');
+    if (!duckBody) return;
+
+    let squeaks = 0;
+    let squeezing = false;
+    let shuffled = [...WISDOMS].sort(() => Math.random() - 0.5);
+
+    function getWisdom() {
+      if (!shuffled.length) shuffled = [...WISDOMS].sort(() => Math.random() - 0.5);
+      return shuffled.pop();
+    }
+
+    function spawnParticle() {
+      const p = document.createElement('div');
+      p.className = 'ds-duck-particle';
+      p.textContent = SQUEAK_WORDS[Math.floor(Math.random() * SQUEAK_WORDS.length)];
+      p.style.cssText = `left:${20 + Math.random() * 60}%;top:${10 + Math.random() * 50}%;`;
+      particles.appendChild(p);
+      setTimeout(() => p.remove(), 800);
+    }
+
+    function release() {
+      if (!squeezing) return;
+      squeezing = false;
+      squeaks++;
+      countEl.textContent = squeaks;
+      duckBody.classList.remove('ds-duck-squeezing');
+      void duckBody.offsetWidth;
+      duckBody.classList.add('ds-duck-bounce');
+      spawnParticle(); spawnParticle();
+      if (squeaks % 3 === 1 || squeaks === 1) {
+        wisdomEl.style.opacity = '0';
+        setTimeout(() => { wisdomEl.textContent = getWisdom(); wisdomEl.style.opacity = '1'; }, 250);
+      }
+    }
+
+    duckBody.addEventListener('mousedown', () => {
+      if (squeezing) return; squeezing = true;
+      duckBody.classList.add('ds-duck-squeezing');
+      duckBody.classList.remove('ds-duck-bounce');
+    });
+    duckBody.addEventListener('mouseup', release);
+    duckBody.addEventListener('mouseleave', release);
+    duckBody.addEventListener('touchstart', (e) => { e.preventDefault(); if (squeezing) return; squeezing = true; duckBody.classList.add('ds-duck-squeezing'); duckBody.classList.remove('ds-duck-bounce'); });
+    duckBody.addEventListener('touchend', (e) => { e.preventDefault(); release(); });
+  }
+
   // ── ATTACH MODAL EVENTS ──────────────────────────────────
   function attachModalEvents() {
     document.getElementById('ds-backdrop').addEventListener('click', () => {
@@ -990,7 +1094,47 @@
 
     document.getElementById('ds-btn-dont-buy').addEventListener('click', () => {
       state._modalAllowed = false;
-      hideModal(); showToast('Money saved 👍');
+      hideModal();
+      showToast('Money saved 👍 — reloading so you stay protected');
+      // Reload after a short pause so the toast is visible, and so _shownForUrl
+      // gets reset meaning the interceptor fires again if they try to transact.
+      setTimeout(() => location.reload(), 1400);
+    });
+
+    // Duck therapy in modal
+    initModalDuck();
+    let waitlistTimer = null;
+    document.getElementById('ds-waitlist-btn').addEventListener('click', () => {
+      const btn = document.getElementById('ds-waitlist-btn');
+      const countdown = document.getElementById('ds-waitlist-countdown');
+      const targetTime = Date.now() + 24 * 60 * 60 * 1000;
+      // Store in session so it persists through page reload (use URL as key)
+      try { sessionStorage.setItem('ds_waitlist_' + location.href, String(targetTime)); } catch(_) {}
+
+      btn.textContent = '✓ Reminder set for 24h';
+      btn.style.borderStyle = 'solid';
+      btn.style.color = 'var(--ds-green)';
+      btn.style.borderColor = 'var(--ds-green-mid)';
+      btn.disabled = true;
+      countdown.classList.add('visible');
+
+      function updateCountdown() {
+        const remaining = targetTime - Date.now();
+        if (remaining <= 0) {
+          countdown.textContent = 'Time\'s up — still want it?';
+          clearInterval(waitlistTimer);
+          return;
+        }
+        const h = Math.floor(remaining / 3_600_000);
+        const m = Math.floor((remaining % 3_600_000) / 60_000);
+        countdown.textContent = `⏱ ${h}h ${m}m remaining`;
+      }
+      updateCountdown();
+      clearInterval(waitlistTimer);
+      waitlistTimer = setInterval(updateCountdown, 60_000);
+
+      state._modalAllowed = false;
+      setTimeout(() => { hideModal(); showToast('⏰ Reminder set — close the tab and come back tomorrow'); }, 1200);
     });
 
     document.getElementById('ds-btn-proceed').addEventListener('click', async () => {
@@ -1069,15 +1213,22 @@
     state._shownForUrl = location.href;
 
     const candidates = getTopCandidates();
-    const topCandidate = candidates[0];
-    const highConfidence = topCandidate && topCandidate.confidence >= 3 && candidates.filter(c => c.confidence >= 3).length === 1;
+    const best = candidates[0];
 
-    // If we have a single high-confidence price, skip straight to main modal
-    if (highConfidence) {
-      _showMainModal(topCandidate.value, getRisk(topCandidate.value, state.settings, state.profile));
-    } else {
-      // Show price picker first
+    // Use directly if: single dominant site-CSS hit, OR top score is clearly ahead of second
+    const clearWinner = best && (
+      (best.confidence >= 3 && best.source.startsWith('site CSS')) ||
+      (best.score >= 25 && (!candidates[1] || best.score >= candidates[1].score * 1.8))
+    );
+
+    if (clearWinner) {
+      _showMainModal(best.value, getRisk(best.value, state.settings, state.profile));
+    } else if (candidates.length > 0) {
+      // Multiple competing candidates or lower confidence — show picker so user confirms
       _showPricePicker(candidates);
+    } else {
+      // No prices found — let user enter manually
+      _showPricePicker([]);
     }
   }
 
@@ -1236,10 +1387,9 @@
     overlay.querySelector('#ds-modal-site').textContent = getDomain();
     overlay.querySelector('#ds-modal-message').textContent = getRiskMsg(amount, risk);
 
-    overlay.querySelector('#ds-ctx-spent').textContent = `${c}${spent.toFixed(0)}`;
-    const leftEl = overlay.querySelector('#ds-ctx-left');
+    const leftEl  = overlay.querySelector('#ds-ctx-left');
     const afterEl = overlay.querySelector('#ds-ctx-after');
-    leftEl.textContent = `${c}${left.toFixed(0)}`;
+    leftEl.textContent  = `${c}${left.toFixed(0)}`;
     afterEl.textContent = `${c}${afterThis.toFixed(0)}`;
     leftEl.className  = 'ds-ctx-val' + (left / budget < 0.2 ? ' ds-danger' : left / budget < 0.4 ? ' ds-warn' : '');
     afterEl.className = 'ds-ctx-val' + (afterThis <= 0 ? ' ds-danger' : afterThis < budget * 0.1 ? ' ds-warn' : '');
@@ -1252,6 +1402,11 @@
     stopGame();
     document.getElementById('ds-game-intro').style.display = '';
     document.querySelectorAll('.ds-game-screen').forEach(s => s.classList.remove('active'));
+    // Reset duck
+    const duckCountEl = document.getElementById('ds-duck-count');
+    const duckWisdomEl = document.getElementById('ds-duck-wisdom');
+    if (duckCountEl) duckCountEl.textContent = '0';
+    if (duckWisdomEl) duckWisdomEl.textContent = 'Give it a squeeze...';
     resetReflect();
     overlay.querySelectorAll('.ds-answer-btn').forEach(btn => {
       btn.addEventListener('click', () => {
