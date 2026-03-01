@@ -114,7 +114,7 @@ async function refreshScore() {
   const recalcEl = document.getElementById('score-recalc');
   recalcEl.classList.add('visible');
   try {
-    const res = await fetch(`${API_BASE}/score/${encodeURIComponent(userName)}`);
+    const res = await fetch(`${apiBase}/score/${encodeURIComponent(userName)}`);
     if (!res.ok) throw new Error(res.status);
     const data = await res.json();
     renderGauge(data.shield_score);
@@ -437,7 +437,7 @@ async function syncAndRefresh() {
   };
 
   try {
-    await fetch(`${API_BASE}/onboard/`, {
+    await fetch(`${apiBase}/onboard/`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify(payload),
@@ -616,12 +616,33 @@ function fmtUSD(n) {
    INIT
 ════════════════════════════════════════ */
 const urlParams = new URLSearchParams(window.location.search);
-const userName  = urlParams.get('name') || 'User';
-// DOM writes moved to DOMContentLoaded
+let userName = urlParams.get('name') || '';
+let apiBase  = urlParams.get('api')  || API_BASE;
+
+// If name wasn't in the URL, try reading it from Chrome extension storage
+async function resolveIdentity() {
+  if (userName) return; // already have it from URL
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+      const data = await chrome.storage.local.get('ds_settings');
+      const s = data['ds_settings'] || {};
+      if (s.userName) userName = s.userName;
+      if (s.apiBase)  apiBase  = s.apiBase;
+    }
+  } catch (_) {}
+  // Update the name chip now that we know who the user is
+  if (userName) {
+    const chip = document.getElementById('user-name-chip');
+    const avatar = document.getElementById('user-avatar');
+    if (chip)   chip.textContent   = userName;
+    if (avatar) avatar.textContent = userName.charAt(0).toUpperCase();
+  }
+}
 
 async function init() {
+  await resolveIdentity();
   try {
-    const res = await fetch(`${API_BASE}/user/${encodeURIComponent(userName)}`);
+    const res = await fetch(`${apiBase}/user/${encodeURIComponent(userName)}`);
     if (res.ok) {
       const data = await res.json();
       profile = {
@@ -672,9 +693,9 @@ async function init() {
 ════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
 
-  // ── userName chip ─────────────────────────────────────────
-  document.getElementById('user-name-chip').textContent = userName;
-  document.getElementById('user-avatar').textContent    = userName.charAt(0).toUpperCase();
+  // ── userName chip (updated after identity resolves in init) ──
+  document.getElementById('user-name-chip').textContent = userName || '…';
+  document.getElementById('user-avatar').textContent    = userName ? userName.charAt(0).toUpperCase() : '?';
 
   // ── Modal overlay backdrop close ─────────────────────────
   document.querySelectorAll('.modal-overlay').forEach(overlay => {
