@@ -33,6 +33,18 @@ async function init() {
 
   renderAll();
   attachEvents();
+
+  // Auto-sync on every popup open if we already have a user configured
+  if (appState.settings.userName) {
+    const miniBtn = document.getElementById('score-sync-mini-btn');
+    if (miniBtn) { miniBtn.textContent = '⟳ ...'; miniBtn.disabled = true; }
+    const result = await chrome.runtime.sendMessage({ type: 'SYNC_PROFILE' });
+    if (miniBtn) { miniBtn.textContent = '↻ Sync'; miniBtn.disabled = false; }
+    if (result?.ok) {
+      appState.profile = result.profile;
+      renderScore();
+    }
+  }
 }
 
 // ── RENDER ────────────────────────────────────────────────────
@@ -185,8 +197,14 @@ function attachEvents() {
     notifyTabs({ type: 'STATE_UPDATED' });
   });
 
-  document.getElementById('q-dashboard').addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('dashboard.html') });
+  document.getElementById('q-dashboard').addEventListener('click', async () => {
+    const data = await chrome.storage.local.get('ds_settings');
+    const settings = data['ds_settings'] || {};
+    const params = new URLSearchParams();
+    if (settings.userName) params.set('name', settings.userName);
+    if (settings.apiBase)  params.set('api',  settings.apiBase);
+    const url = chrome.runtime.getURL('dashboard.html') + (params.toString() ? `?${params}` : '');
+    chrome.tabs.create({ url });
     window.close();
   });
 
@@ -231,28 +249,46 @@ function attachEvents() {
     });
   });
 
-  // Profile fields — save on change, then auto-sync after a short debounce
+  // Profile fields — save on every keystroke, auto-sync after user stops typing
   let autoSyncTimer = null;
-  function scheduleAutoSync() {
+
+  async function saveAndScheduleSync() {
+    const nameVal = document.getElementById('setting-username').value.trim();
+    const apiVal  = document.getElementById('setting-apibase').value.trim() || 'http://localhost:8000';
+    appState.settings.userName = nameVal;
+    appState.settings.apiBase  = apiVal;
+
+    // Must fully await storage write before SYNC_PROFILE reads it
+    await chrome.runtime.sendMessage({ type: 'UPDATE_SETTINGS', settings: { userName: nameVal, apiBase: apiVal } });
+
     clearTimeout(autoSyncTimer);
-    autoSyncTimer = setTimeout(() => {
-      const nameVal = document.getElementById('setting-username').value.trim();
-      if (nameVal) syncProfile('score-sync-mini-btn', 'sync-status');
-    }, 1200);
+    if (!nameVal) return;
+
+    const statusEl = document.getElementById('sync-status');
+    const miniBtn  = document.getElementById('score-sync-mini-btn');
+    if (statusEl) { statusEl.textContent = '● waiting...'; statusEl.className = ''; }
+    if (miniBtn)  { miniBtn.textContent = '⟳ ...'; miniBtn.disabled = true; }
+
+    // Only start the timer after storage write is confirmed
+    autoSyncTimer = setTimeout(async () => {
+      const result = await chrome.runtime.sendMessage({ type: 'SYNC_PROFILE' });
+
+      if (miniBtn)  { miniBtn.textContent = '↻ Sync'; miniBtn.disabled = false; }
+
+      if (result?.ok) {
+        appState.profile = result.profile;
+        renderScore();
+        if (statusEl) { statusEl.textContent = '✓ Synced'; statusEl.className = 'ok'; }
+        setTimeout(() => { if (statusEl) { statusEl.textContent = ''; statusEl.className = ''; } }, 3000);
+      } else {
+        const reason = result?.reason === 'no_user' ? 'No user found' : 'API unreachable';
+        if (statusEl) { statusEl.textContent = `✗ ${reason}`; statusEl.className = 'err'; }
+      }
+    }, 900);
   }
 
-  document.getElementById('setting-username').addEventListener('change', async (e) => {
-    const userName = e.target.value.trim();
-    appState.settings.userName = userName;
-    await chrome.runtime.sendMessage({ type: 'UPDATE_SETTINGS', settings: { userName } });
-    scheduleAutoSync();
-  });
-  document.getElementById('setting-apibase').addEventListener('change', async (e) => {
-    const apiBase = e.target.value.trim() || 'http://localhost:8000';
-    appState.settings.apiBase = apiBase;
-    await chrome.runtime.sendMessage({ type: 'UPDATE_SETTINGS', settings: { apiBase } });
-    scheduleAutoSync();
-  });
+  document.getElementById('setting-username').addEventListener('input', saveAndScheduleSync);
+  document.getElementById('setting-apibase').addEventListener('input', saveAndScheduleSync);
 
   // Sync button (settings)
   document.getElementById('sync-btn').addEventListener('click', () => syncProfile('sync-btn', 'sync-status'));
